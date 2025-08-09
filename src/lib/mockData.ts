@@ -16,20 +16,20 @@ export const mockCategories = [
 ]
 
 export const mockItems = [
-  { id: '1', name: 'Banana', categoryId: '1', userId: '1' },
-  { id: '2', name: 'Maçã', categoryId: '1', userId: '1' },
-  { id: '3', name: 'Laranja', categoryId: '1', userId: '1' },
-  { id: '4', name: 'Alface', categoryId: '2', userId: '1' },
-  { id: '5', name: 'Tomate', categoryId: '2', userId: '1' },
-  { id: '6', name: 'Cebola', categoryId: '2', userId: '1' },
-  { id: '7', name: 'Frango', categoryId: '3', userId: '1' },
-  { id: '8', name: 'Carne Bovina', categoryId: '3', userId: '1' },
-  { id: '9', name: 'Leite', categoryId: '4', userId: '1' },
-  { id: '10', name: 'Queijo', categoryId: '4', userId: '1' },
-  { id: '11', name: 'Detergente', categoryId: '5', userId: '1' },
-  { id: '12', name: 'Sabão em Pó', categoryId: '5', userId: '1' },
-  { id: '13', name: 'Shampoo', categoryId: '6', userId: '1' },
-  { id: '14', name: 'Pasta de Dente', categoryId: '6', userId: '1' }
+  { id: '1', name: 'Banana', categoryId: '1', userId: '1', price: 5.80 }, // por kg
+  { id: '2', name: 'Maçã', categoryId: '1', userId: '1', price: 7.90 }, // por kg
+  { id: '3', name: 'Laranja', categoryId: '1', userId: '1', price: 4.50 }, // por kg
+  { id: '4', name: 'Alface', categoryId: '2', userId: '1', price: 2.80 }, // por unidade
+  { id: '5', name: 'Tomate', categoryId: '2', userId: '1', price: 6.20 }, // por kg
+  { id: '6', name: 'Cebola', categoryId: '2', userId: '1', price: 3.50 }, // por kg
+  { id: '7', name: 'Frango', categoryId: '3', userId: '1', price: 12.90 }, // por kg
+  { id: '8', name: 'Carne Bovina', categoryId: '3', userId: '1', price: 35.80 }, // por kg
+  { id: '9', name: 'Leite', categoryId: '4', userId: '1', price: 4.20 }, // por litro
+  { id: '10', name: 'Queijo', categoryId: '4', userId: '1', price: 18.50 }, // por kg
+  { id: '11', name: 'Detergente', categoryId: '5', userId: '1', price: 2.50 }, // por unidade
+  { id: '12', name: 'Sabão em Pó', categoryId: '5', userId: '1', price: 8.90 }, // por unidade
+  { id: '13', name: 'Shampoo', categoryId: '6', userId: '1', price: 15.60 }, // por unidade
+  { id: '14', name: 'Pasta de Dente', categoryId: '6', userId: '1', price: 6.40 } // por unidade
 ]
 
 export const mockLists = [

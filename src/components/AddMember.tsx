@@ -14,13 +14,11 @@ interface AddMemberProps {
 
 export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberProps) {
   const [newMemberName, setNewMemberName] = useState('')
-  const [isAdding, setIsAdding] = useState(false)
 
   const handleAddMember = () => {
     if (newMemberName.trim()) {
       onAddMember(newMemberName.trim())
       setNewMemberName('')
-      setIsAdding(false)
     }
   }
 
@@ -32,85 +30,103 @@ export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberPro
       .join('')
   }
 
+  const getAvatarColor = (index: number) => {
+    const colors = [
+      'bg-green-500',
+      'bg-blue-500', 
+      'bg-purple-500',
+      'bg-orange-500',
+      'bg-pink-500',
+      'bg-indigo-500',
+      'bg-teal-500',
+      'bg-red-500'
+    ]
+    return colors[index % colors.length]
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-gray-900">Membros da Lista</h3>
-        <span className="text-sm text-gray-500">{members.length} pessoa(s)</span>
+        <h3 className="text-sm font-medium text-gray-900">Membros ({members.length})</h3>
       </div>
 
-      {/* Lista de Membros */}
-      <div className="flex flex-wrap gap-2">
-        {members.map((member) => (
-          <div
-            key={member.id}
-            className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-full px-3 py-1.5 group"
-          >
-            {/* Avatar */}
-            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-              {getInitials(member.name)}
-            </div>
-            
-            {/* Nome */}
-            <span className="text-sm font-medium text-green-700">
-              {member.name}
-            </span>
-            
-            {/* Botão Remover */}
-            <button
-              onClick={() => onRemoveMember(member.id)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:bg-green-200 rounded-full p-0.5"
-            >
-              <X size={12} className="text-green-600" />
-            </button>
-          </div>
-        ))}
-
-        {/* Botão Adicionar */}
-        {!isAdding ? (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1 px-3 py-1.5 border-2 border-dashed border-gray-300 rounded-full text-gray-500 hover:border-green-400 hover:text-green-600 transition-colors text-sm"
-          >
-            <Plus size={14} />
-            Adicionar
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-full px-3 py-1">
-            <input
-              type="text"
-              value={newMemberName}
-              onChange={(e) => setNewMemberName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddMember()
-                if (e.key === 'Escape') {
-                  setIsAdding(false)
-                  setNewMemberName('')
-                }
-              }}
-              placeholder="Nome da pessoa"
-              className="text-sm border-none outline-none bg-transparent flex-1 min-w-0"
-              autoFocus
-            />
+      {/* Layout Horizontal Otimizado: Campo + Avatares */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Campo de Input com ícone */}
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            value={newMemberName}
+            onChange={(e) => setNewMemberName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddMember()
+            }}
+            placeholder="Nome ou contato"
+            className="w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 focus:bg-white transition-colors"
+          />
+          {newMemberName.trim() && (
             <button
               onClick={handleAddMember}
-              disabled={!newMemberName.trim()}
-              className="text-green-600 hover:text-green-700 disabled:text-gray-400"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-green-600 hover:text-green-700 transition-colors"
+              title="Adicionar membro"
             >
-              <Plus size={14} />
+              <Plus size={16} />
             </button>
-            <button
-              onClick={() => {
-                setIsAdding(false)
-                setNewMemberName('')
-              }}
-              className="text-gray-400 hover:text-gray-600"
+          )}
+        </div>
+
+        {/* Avatares dos Membros - Layout mais compacto */}
+        <div className="flex items-center -space-x-1">
+          {members.slice(0, 4).map((member, index) => (
+            <div
+              key={member.id}
+              className="relative group"
             >
-              <X size={14} />
-            </button>
+              {/* Avatar */}
+              <div 
+                className={`w-9 h-9 ${getAvatarColor(index)} rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md border-2 border-white cursor-pointer transition-all hover:scale-110 hover:z-10 hover:shadow-lg`}
+                title={member.name}
+              >
+                {getInitials(member.name)}
+              </div>
+              
+              {/* Botão de Remover (aparece no hover) */}
+              <button
+                onClick={() => onRemoveMember(member.id)}
+                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg z-20 hover:bg-red-600"
+                title={`Remover ${member.name}`}
+              >
+                <X size={12} className="text-white" />
+              </button>
+            </div>
+          ))}
+          
+          {/* Indicador de membros extras */}
+          {members.length > 4 && (
+            <div className="w-9 h-9 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md border-2 border-white"
+              title={`+${members.length - 4} membros`}
+            >
+              +{members.length - 4}
+            </div>
+          )}
+          
+          {/* Indicador de adicionar - sempre visível */}
+          <div 
+            className="w-9 h-9 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 hover:border-green-400 hover:text-green-500 transition-colors cursor-pointer ml-1"
+            onClick={() => document.querySelector('input[placeholder*="Nome ou contato"]')?.focus()}
+            title="Adicionar membro"
+          >
+            <Plus size={16} />
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Lista de nomes para telas pequenas (opcional) */}
+      {members.length > 0 && (
+        <div className="text-xs text-gray-500 sm:hidden">
+          {members.map(member => member.name).join(', ')}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Copy, DollarSign, Phone, Mail, CreditCard, Hash, Shuffle } from 'lucide-react'
-import { Modal } from './Modal'
+import { Copy, DollarSign, Phone, Mail, CreditCard, Hash, Shuffle, RotateCcw, X } from 'lucide-react'
+import { Modal, useResponsiveModalSizing } from './Modal'
 
 interface PixChargeModalProps {
   isOpen: boolean
@@ -65,6 +65,7 @@ export function PixChargeModal({
   listName,
   members 
 }: PixChargeModalProps) {
+  const { padding } = useResponsiveModalSizing()
   const [selectedKeyType, setSelectedKeyType] = useState<PixKeyType>('cpf')
   const [pixKey, setPixKey] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -150,36 +151,36 @@ export function PixChargeModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Cobrar Membros">
       <div className="flex flex-col" style={{ height: '100%' }}>
-        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 modal-scroll">
-          <div className="space-y-4">
+        <div className={`flex-1 overflow-y-auto min-h-0 ${padding === 'p-2' ? 'p-2' : 'p-3'} modal-scroll`}>
+          <div className={`${padding === 'p-2' ? 'space-y-2' : 'space-y-3'}`}>
             {/* Resumo da Cobrança */}
-            <div className="card bg-green-50 border-green-200">
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign size={20} className="text-green-600" />
-                <h3 className="font-semibold text-green-800">Resumo da Cobrança</h3>
+            <div className={`bg-green-50 border border-green-200 rounded-xl ${padding === 'p-2' ? 'p-2' : 'p-3'}`}>
+              <div className={`flex items-center gap-2 ${padding === 'p-2' ? 'mb-1.5' : 'mb-2'}`}>
+                <DollarSign size={padding === 'p-2' ? 16 : 18} className="text-green-600" />
+                <h3 className={`font-medium text-green-800 ${padding === 'p-2' ? 'text-xs' : 'text-sm'}`}>Resumo da Cobrança</h3>
               </div>
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className={`grid grid-cols-3 ${padding === 'p-2' ? 'gap-1.5' : 'gap-2'} text-center`}>
                 <div>
-                  <div className="text-xl font-bold text-green-800">R$ {totalAmount.toFixed(2)}</div>
-                  <div className="text-xs text-green-600">Total</div>
+                  <div className={`font-bold text-green-800 ${padding === 'p-2' ? 'text-base' : 'text-lg'}`}>R$ {totalAmount.toFixed(2)}</div>
+                  <div className={`text-green-600 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Total</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-green-800">{memberCount}</div>
-                  <div className="text-xs text-green-600">Pessoas</div>
+                  <div className={`font-bold text-green-800 ${padding === 'p-2' ? 'text-base' : 'text-lg'}`}>{memberCount}</div>
+                  <div className={`text-green-600 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Pessoas</div>
                 </div>
                 <div>
-                  <div className="text-xl font-bold text-green-800">R$ {amountPerPerson.toFixed(2)}</div>
-                  <div className="text-xs text-green-600">Por pessoa</div>
+                  <div className={`font-bold text-green-800 ${padding === 'p-2' ? 'text-base' : 'text-lg'}`}>R$ {amountPerPerson.toFixed(2)}</div>
+                  <div className={`text-green-600 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Por pessoa</div>
                 </div>
               </div>
             </div>
 
             {/* Tipo de Chave PIX */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>
                 Tipo da Chave PIX
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className={`grid grid-cols-2 ${padding === 'p-2' ? 'gap-1.5' : 'gap-2'}`}>
                 {pixKeyTypes.map((type) => {
                   const Icon = type.icon
                   return (
@@ -190,7 +191,7 @@ export function PixChargeModal({
                         setSelectedKeyType(type.id)
                         setPixKey('')
                       }}
-                      className={`p-2 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-1 ${
+                      className={`p-2 rounded-lg border-2 transition-all duration-200 flex items-center justify-center gap-1 ${
                         selectedKeyType === type.id
                           ? 'border-green-500 bg-green-50 text-green-700'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
@@ -206,7 +207,7 @@ export function PixChargeModal({
 
             {/* Campo da Chave PIX */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Sua Chave PIX ({selectedType?.name})
               </label>
               <input
@@ -261,13 +262,15 @@ export function PixChargeModal({
         </div>
 
         {/* Botões Fixos */}
-        <div className="flex-shrink-0 border-t border-gray-100 p-4">
+        <div className={`flex-shrink-0 border-t border-gray-100 ${padding === 'p-2' ? 'p-2' : 'p-3'} space-y-2`}>
+          {/* Linha superior com botões de ação secundária */}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleReset}
-              className="btn-secondary px-3 py-2 text-sm"
+              className="btn-ghost"
             >
+              <RotateCcw size={16} className="mr-1" />
               Limpar
             </button>
             <button
@@ -275,13 +278,18 @@ export function PixChargeModal({
               onClick={() => onClose()}
               className="btn-secondary flex-1"
             >
+              <X size={16} className="mr-2" />
               Cancelar
             </button>
+          </div>
+          
+          {/* Linha inferior com botão principal */}
+          <div className="w-full">
             <button
               type="button"
               onClick={handleSendCharges}
               disabled={!pixKey.trim() || isLoading}
-              className="btn flex-1"
+              className="btn w-full"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-2">
@@ -289,7 +297,10 @@ export function PixChargeModal({
                   <span>Enviando...</span>
                 </div>
               ) : (
-                'Enviar Cobrança'
+                <div className="flex items-center justify-center gap-2">
+                  <DollarSign size={16} />
+                  <span>Enviar Cobrança</span>
+                </div>
               )}
             </button>
           </div>

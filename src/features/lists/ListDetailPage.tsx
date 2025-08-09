@@ -9,7 +9,7 @@ import { AddItemForm } from '../../components/AddItemForm'
 import { PixChargeModal } from '../../components/PixChargeModal'
 import { mockApi, mockItems, mockCategories, mockUser } from '../../lib/mockData'
 
-type Item = { id: string; name: string; checked: boolean; qty?: number; price?: number; category?: string }
+type Item = { id: string; name: string; checked: boolean; qty?: number; price?: number; category?: string; unit?: string }
 type Member = { id: string; name: string }
 
 export function ListDetailPage(){
@@ -83,14 +83,15 @@ export function ListDetailPage(){
     setMembers(prev => prev.filter(m => m.id !== id))
   }
 
-  function handleAddItem(itemData: { name: string; price?: number; category?: string; qty?: number }) {
+  function handleAddItem(itemData: { name: string; price?: number; category?: string; qty?: number; unit?: string }) {
     const newItem: Item = {
       id: Date.now().toString(),
       name: itemData.name,
       checked: false,
       qty: itemData.qty || 1,
       price: itemData.price,
-      category: itemData.category ? mockCategories.find(c => c.id === itemData.category)?.name : undefined
+      category: itemData.category ? mockCategories.find(c => c.id === itemData.category)?.name : undefined,
+      unit: itemData.unit || 'unidade'
     }
     setItems(prev => [...prev, newItem])
   }
@@ -248,6 +249,7 @@ export function ListDetailPage(){
               qty={i.qty} 
               price={i.price}
               category={i.category}
+              unit={i.unit}
               onToggle={(v)=>toggle(i.id, v)} 
             />
           ))}
@@ -259,9 +261,35 @@ export function ListDetailPage(){
         </div>
       )}
 
+      {/* Card de Valor Total - Fixo entre itens e botão de cobrar */}
+      <div className="card border border-green-100 sticky bottom-0 bg-white z-10" style={{ 
+        padding: '20px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)'
+      }}>
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600">Total Gasto</div>
+          <div className="font-bold text-xl text-green-600">R$ {totals.real.toFixed(2)}</div>
+        </div>
+        {split && totals.porPessoa !== undefined && (
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+            <div className="text-sm text-gray-600">
+              Por pessoa ({members.length} {members.length === 1 ? 'pessoa' : 'pessoas'})
+            </div>
+            <div className="font-semibold text-lg text-gray-900">R$ {totals.porPessoa.toFixed(2)}</div>
+          </div>
+        )}
+        {items.filter(i => i.checked).length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-100">
+            <div className="text-xs text-gray-500 text-center">
+              {items.filter(i => i.checked).length} de {items.length} itens comprados • {totals.progress}% concluído
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Botão de Cobrar (só aparece para o dono da lista) */}
       {canCharge && (
-        <div className="px-4">
+        <div className="px-4 pb-4">
           <button
             onClick={() => setShowPixModal(true)}
             className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center gap-3 active:scale-95"
@@ -274,36 +302,6 @@ export function ListDetailPage(){
           </button>
         </div>
       )}
-
-      <div className="h-40" />
-      <div className="fixed inset-x-0" style={{ bottom: 'calc(110px + env(safe-area-inset-bottom))' }}>
-        <div className="max-w-md mx-auto px-4">
-          <div className="card border border-green-100" style={{ 
-            padding: '20px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)'
-          }}>
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">Total Gasto</div>
-              <div className="font-bold text-xl text-green-600">R$ {totals.real.toFixed(2)}</div>
-            </div>
-            {split && totals.porPessoa !== undefined && (
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                <div className="text-sm text-gray-600">
-                  Por pessoa ({members.length} {members.length === 1 ? 'pessoa' : 'pessoas'})
-                </div>
-                <div className="font-semibold text-lg text-gray-900">R$ {totals.porPessoa.toFixed(2)}</div>
-              </div>
-            )}
-            {items.filter(i => i.checked).length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-100">
-                <div className="text-xs text-gray-500 text-center">
-                  {items.filter(i => i.checked).length} de {items.length} itens comprados • {totals.progress}% concluído
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Modal PIX */}
       <PixChargeModal

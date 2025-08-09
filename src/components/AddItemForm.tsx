@@ -1,22 +1,41 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Package, ChevronDown } from 'lucide-react'
-import { mockCategories } from '../lib/mockData'
+import { Plus, Package, ChevronDown, X, Search, Scale, Hash } from 'lucide-react'
+import { mockCategories, mockItems } from '../lib/mockData'
 
 interface AddItemFormProps {
-  onAddItem: (item: { name: string; price?: number; category?: string; qty?: number }) => void
+  onAddItem: (item: { name: string; price?: number; category?: string; qty?: number; unit?: string }) => void
   isExpanded: boolean
   onToggleExpanded: () => void
 }
 
 export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItemFormProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<typeof mockItems[0] | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     category: '',
-    qty: '1'
+    qty: '1',
+    unit: 'unidade' // 'unidade' ou 'peso'
+  })
+  const [itemQuantityData, setItemQuantityData] = useState({
+    qty: '1',
+    unit: 'unidade'
   })
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Filtrar itens existentes baseado na busca
+  const filteredItems = mockItems.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // Mostrar formulário de criação se não houver resultados ou se forçado
+  const shouldShowCreateForm = showCreateForm || (searchQuery.length > 0 && filteredItems.length === 0)
+  
+  // Mostrar seleção de quantidade se um item foi selecionado
+  const shouldShowQuantitySelection = selectedItem !== null
 
   // Fechar dropdown quando clicar fora
   useEffect(() => {
@@ -43,17 +62,62 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
       name: formData.name.trim(),
       price: formData.price ? parseFloat(formData.price) : undefined,
       category: formData.category || undefined,
-      qty: parseInt(formData.qty) || 1
+      qty: formData.unit === 'peso' ? parseFloat(formData.qty) || 1 : parseInt(formData.qty) || 1,
+      unit: formData.unit
     })
 
-    // Resetar form
+    resetForm()
+  }
+
+  const handleSelectExistingItem = (item: typeof mockItems[0]) => {
+    setSelectedItem(item)
+    // Reset quantity data quando selecionar novo item
+    setItemQuantityData({
+      qty: '1',
+      unit: 'unidade'
+    })
+  }
+
+  const handleConfirmItemWithQuantity = () => {
+    if (!selectedItem) return
+    
+    const category = mockCategories.find(c => c.id === selectedItem.categoryId)
+    const quantity = itemQuantityData.unit === 'peso' ? parseFloat(itemQuantityData.qty) || 1 : parseInt(itemQuantityData.qty) || 1
+    
+    // Calcular preço baseado na quantidade (se o item tiver preço)
+    const itemPrice = selectedItem.price ? selectedItem.price * quantity : undefined
+    
+    onAddItem({
+      name: selectedItem.name,
+      category: category?.name,
+      qty: quantity,
+      unit: itemQuantityData.unit,
+      price: itemPrice
+    })
+    resetForm()
+  }
+
+  const resetForm = () => {
+    setSearchQuery('')
+    setShowCreateForm(false)
+    setSelectedItem(null)
     setFormData({
       name: '',
       price: '',
       category: '',
-      qty: '1'
+      qty: '1',
+      unit: 'unidade'
+    })
+    setItemQuantityData({
+      qty: '1',
+      unit: 'unidade'
     })
     onToggleExpanded()
+  }
+
+  const handleCreateNew = () => {
+    setShowCreateForm(true)
+    setFormData(prev => ({ ...prev, name: searchQuery }))
   }
 
   const getCategoryColor = (categoryId: string) => {
@@ -79,11 +143,258 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-gray-50 rounded-2xl border border-gray-200">
-      <div className="flex items-center gap-2 mb-3">
-        <Package size={20} className="text-green-600" />
-        <h3 className="font-medium text-gray-900">Novo Item</h3>
-      </div>
+    <div className="space-y-4 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+      {/* Seleção de Quantidade para Item Existente */}
+      {shouldShowQuantitySelection && (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <Package size={20} className="text-green-600" />
+            <h3 className="font-medium text-gray-900">Definir Quantidade</h3>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center gap-3 mb-4">
+              {(() => {
+                const category = mockCategories.find(c => c.id === selectedItem?.categoryId)
+                return category ? (
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: category.color }}
+                  />
+                ) : null
+              })()}
+              <div className="flex-1">
+                <div className="font-medium text-gray-900">{selectedItem?.name}</div>
+                <div className="text-xs text-gray-500">
+                  {(() => {
+                    const category = mockCategories.find(c => c.id === selectedItem?.categoryId)
+                    return category?.name || 'Sem categoria'
+                  })()}
+                </div>
+                {selectedItem?.price && (
+                  <div className="text-sm text-green-600 font-medium mt-1">
+                    R$ {selectedItem.price.toFixed(2)} por {itemQuantityData.unit === 'peso' ? 'kg' : 'unidade'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tipo de Quantidade */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Quantidade
+              </label>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setItemQuantityData(prev => ({ ...prev, unit: 'unidade', qty: '1' }))}
+                  className={`p-3 rounded-xl border-2 transition-all duration-200 ${
+                    itemQuantityData.unit === 'unidade'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Hash size={18} className="mx-auto mb-1" />
+                  <div className="font-medium text-sm">Unidade</div>
+                  <div className="text-xs text-gray-500">1, 2, 3...</div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setItemQuantityData(prev => ({ ...prev, unit: 'peso', qty: '1' }))}
+                  className={`p-3 rounded-xl border-2 transition-all duration-200 ${
+                    itemQuantityData.unit === 'peso'
+                      ? 'border-orange-500 bg-orange-50 text-orange-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Scale size={18} className="mx-auto mb-1" />
+                  <div className="font-medium text-sm">Peso</div>
+                  <div className="text-xs text-gray-500">kg, g</div>
+                </button>
+              </div>
+
+              {/* Campo de Quantidade */}
+              <div className="relative">
+                <input
+                  type="number"
+                  value={itemQuantityData.qty}
+                  onChange={(e) => setItemQuantityData(prev => ({ ...prev, qty: e.target.value }))}
+                  min={itemQuantityData.unit === 'peso' ? '0.001' : '1'}
+                  step={itemQuantityData.unit === 'peso' ? '0.001' : '1'}
+                  className="w-full px-3 py-3 pr-16 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+                  placeholder={itemQuantityData.unit === 'peso' ? '0.5' : '1'}
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+                  {itemQuantityData.unit === 'peso' ? 'kg' : 'un'}
+                </div>
+              </div>
+              
+              {itemQuantityData.unit === 'peso' && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Use decimais para gramas: 0.5 kg = 500g
+                </div>
+              )}
+            </div>
+
+            {/* Resumo do Preço */}
+            {selectedItem?.price && (
+              <div className="bg-green-50 p-3 rounded-xl border border-green-200 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-green-700">Preço Total</div>
+                  <div className="font-bold text-lg text-green-700">
+                    R$ {(selectedItem.price * (parseFloat(itemQuantityData.qty) || 1)).toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-xs text-green-600 mt-1">
+                  {itemQuantityData.qty} {itemQuantityData.unit === 'peso' ? 'kg' : 'unidades'} × R$ {selectedItem.price.toFixed(2)}
+                </div>
+              </div>
+            )}
+
+            {/* Botões de ação */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedItem(null)}
+                className="btn-secondary flex-1"
+              >
+                <X size={16} className="mr-2" />
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmItemWithQuantity}
+                className="btn flex-1"
+              >
+                <Plus size={16} className="mr-2" />
+                Adicionar à Lista
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Busca de Itens Existentes */}
+      {!shouldShowCreateForm && !shouldShowQuantitySelection && (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <Search size={20} className="text-blue-600" />
+            <h3 className="font-medium text-gray-900">Buscar Item Existente</h3>
+          </div>
+
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Digite o nome do item..."
+              className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+              autoFocus
+            />
+          </div>
+
+          {/* Resultados da Busca */}
+          {searchQuery.length > 0 && filteredItems.length > 0 && (
+            <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-white">
+              {filteredItems.map((item) => {
+                const category = mockCategories.find(c => c.id === item.categoryId)
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectExistingItem(item)}
+                    className="w-full p-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 text-left transition-colors"
+                  >
+                    {category && (
+                      <div
+                        className="w-4 h-4 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: category.color }}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{item.name}</div>
+                      <div className="text-xs text-gray-500">{category?.name || 'Sem categoria'}</div>
+                      {item.price && (
+                        <div className="text-xs text-green-600 font-medium mt-0.5">
+                          R$ {item.price.toFixed(2)} por kg/un
+                        </div>
+                      )}
+                    </div>
+                    <Plus size={16} className="text-green-600" />
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Opção para criar novo item baseado na busca */}
+          {searchQuery.length > 0 && (
+            <div className="border-t border-gray-200 pt-3">
+              <button
+                onClick={handleCreateNew}
+                className="w-full p-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-dashed border-green-300 rounded-xl hover:border-green-400 hover:from-green-100 hover:to-emerald-100 transition-all text-green-700"
+              >
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Plus size={16} />
+                  <span className="font-medium">Criar "{searchQuery}"</span>
+                </div>
+                <div className="text-xs text-green-600">
+                  Item novo com este nome
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Opção para criar item personalizado */}
+          <div className="border-t border-gray-200 pt-3 mt-3">
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="w-full p-3 bg-white border border-gray-300 rounded-xl hover:border-green-400 hover:bg-green-50 transition-colors text-gray-700 hover:text-green-700"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Package size={16} />
+                <span className="font-medium">Criar item personalizado</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Com detalhes específicos (preço, categoria, etc.)
+              </div>
+            </button>
+          </div>
+
+          {/* Botão de cancelar */}
+          <div className="pt-3">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="btn-secondary w-full"
+            >
+              <X size={16} className="mr-2" />
+              Cancelar
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Formulário de Criação */}
+      {shouldShowCreateForm && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Package size={20} className="text-green-600" />
+              <h3 className="font-medium text-gray-900">Criar Novo Item</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreateForm(false)
+                setFormData(prev => ({ ...prev, name: '' }))
+              }}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
 
       {/* Nome do Item */}
       <div>
@@ -162,19 +473,62 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
         </div>
       </div>
 
-      {/* Quantidade */}
+      {/* Tipo de Quantidade */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Quantidade
+          Tipo de Quantidade
         </label>
-        <input
-          type="number"
-          value={formData.qty}
-          onChange={(e) => setFormData(prev => ({ ...prev, qty: e.target.value }))}
-          min="1"
-          className="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
-          placeholder="1"
-        />
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, unit: 'unidade', qty: '1' }))}
+            className={`p-3 rounded-xl border-2 transition-all duration-200 ${
+              formData.unit === 'unidade'
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Hash size={18} className="mx-auto mb-1" />
+            <div className="font-medium text-sm">Unidade</div>
+            <div className="text-xs text-gray-500">1, 2, 3...</div>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, unit: 'peso', qty: '1' }))}
+            className={`p-3 rounded-xl border-2 transition-all duration-200 ${
+              formData.unit === 'peso'
+                ? 'border-orange-500 bg-orange-50 text-orange-700'
+                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Scale size={18} className="mx-auto mb-1" />
+            <div className="font-medium text-sm">Peso</div>
+            <div className="text-xs text-gray-500">kg, g</div>
+          </button>
+        </div>
+
+        {/* Campo de Quantidade */}
+        <div className="relative">
+          <input
+            type="number"
+            value={formData.qty}
+            onChange={(e) => setFormData(prev => ({ ...prev, qty: e.target.value }))}
+            min={formData.unit === 'peso' ? '0.001' : '1'}
+            step={formData.unit === 'peso' ? '0.001' : '1'}
+            className="w-full px-3 py-3 pr-16 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+            placeholder={formData.unit === 'peso' ? '0.5' : '1'}
+          />
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+            {formData.unit === 'peso' ? 'kg' : 'un'}
+          </div>
+        </div>
+        
+        {formData.unit === 'peso' && (
+          <div className="text-xs text-gray-500 mt-1">
+            Use decimais para gramas: 0.5 kg = 500g
+          </div>
+        )}
       </div>
 
       {/* Preço */}
@@ -198,23 +552,27 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
         </div>
       </div>
 
-      {/* Botões */}
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="btn-secondary flex-1"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={!formData.name.trim()}
-          className="btn flex-1"
-        >
-          Adicionar
-        </button>
-      </div>
-    </form>
+          {/* Botões do formulário de criação */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="btn-secondary flex-1"
+            >
+              <X size={16} className="mr-2" />
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!formData.name.trim()}
+              className="btn flex-1"
+            >
+              <Plus size={16} className="mr-2" />
+              Criar Item
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   )
 }

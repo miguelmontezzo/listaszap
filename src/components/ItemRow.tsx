@@ -5,10 +5,18 @@ interface ItemRowProps {
   qty?: number
   price?: number
   category?: string
+  unit?: string
   onToggle?: (v: boolean) => void
 }
 
-export function ItemRow({ name, checked, qty, price, category, onToggle }: ItemRowProps) {
+export function ItemRow({ name, checked, qty, price, category, unit, onToggle }: ItemRowProps) {
+  
+  const formatQuantity = (qty: number, unit?: string) => {
+    if (unit === 'peso') {
+      return qty < 1 ? `${(qty * 1000).toFixed(0)}g` : `${qty.toFixed(qty % 1 === 0 ? 0 : 1)}kg`
+    }
+    return `${qty}un`
+  }
   return (
     <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0">
       <div className="flex items-center gap-4 flex-1 cursor-pointer">
@@ -59,7 +67,7 @@ export function ItemRow({ name, checked, qty, price, category, onToggle }: ItemR
       <div className="text-right">
         {qty && (
           <div className="text-sm font-medium text-gray-600">
-            x{qty}
+            {formatQuantity(qty, unit)}
           </div>
         )}
         {price && (

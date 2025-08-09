@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Plus, Minus, Users, Split, X } from 'lucide-react'
-import { Modal } from './Modal'
+import { Plus, Minus, Users, Split, X, Check } from 'lucide-react'
+import { Modal, useResponsiveModalSizing } from './Modal'
 import { mockItems, mockCategories } from '../lib/mockData'
 
 interface NewListModalProps {
@@ -12,6 +12,7 @@ interface NewListModalProps {
 type ListType = 'personal' | 'shared'
 
 export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProps) {
+  const { padding } = useResponsiveModalSizing()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -102,11 +103,11 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Nova Lista">
       <div className="flex flex-col" style={{ height: '100%' }}>
-        <div className="flex-1 p-4 sm:p-6 modal-scroll" style={{ minHeight: 0 }}>
-          <form id="new-list-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className={`flex-1 ${padding === 'p-2' ? 'p-2' : 'p-3'} modal-scroll`} style={{ minHeight: 0 }}>
+          <form id="new-list-form" onSubmit={handleSubmit} className={`${padding === 'p-2' ? 'space-y-2' : 'space-y-3'}`}>
         {/* Nome da Lista */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>
             Nome da Lista *
           </label>
           <input
@@ -121,7 +122,7 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
 
         {/* Descrição */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>
             Descrição (opcional)
           </label>
           <input
@@ -135,13 +136,13 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
 
         {/* Tipo de Lista */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-2'}`}>
             Tipo de Lista
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid grid-cols-2 ${padding === 'p-2' ? 'gap-1.5' : 'gap-2'}`}>
             <button
               type="button"
-              className={`p-3 rounded-xl border-2 transition-all duration-200 ${
+              className={`${padding === 'p-2' ? 'p-2' : 'p-2.5'} rounded-lg border-2 transition-all duration-200 ${
                 formData.type === 'personal'
                   ? 'border-green-500 bg-green-50 text-green-700'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
@@ -151,14 +152,14 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
                 type: 'personal'
               }))}
             >
-              <Users size={20} className="mx-auto mb-1" />
-              <div className="font-medium text-sm">Pessoal</div>
-              <div className="text-xs text-gray-500">Só para mim</div>
+              <Users size={padding === 'p-2' ? 16 : 18} className="mx-auto mb-1" />
+              <div className={`font-medium ${padding === 'p-2' ? 'text-xs' : 'text-sm'}`}>Pessoal</div>
+              <div className={`text-gray-500 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Só para mim</div>
             </button>
             
             <button
               type="button"
-              className={`p-3 rounded-xl border-2 transition-all duration-200 ${
+              className={`${padding === 'p-2' ? 'p-2' : 'p-2.5'} rounded-lg border-2 transition-all duration-200 ${
                 formData.type === 'shared'
                   ? 'border-green-500 bg-green-50 text-green-700'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
@@ -168,9 +169,9 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
                 type: 'shared'
               }))}
             >
-              <Split size={20} className="mx-auto mb-1" />
-              <div className="font-medium text-sm">Compartilhada</div>
-              <div className="text-xs text-gray-500">Com outras pessoas</div>
+              <Split size={padding === 'p-2' ? 16 : 18} className="mx-auto mb-1" />
+              <div className={`font-medium ${padding === 'p-2' ? 'text-xs' : 'text-sm'}`}>Compartilhada</div>
+              <div className={`text-gray-500 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Com outras pessoas</div>
             </button>
           </div>
         </div>
@@ -304,13 +305,14 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
         </div>
         
         {/* Botões Fixos */}
-        <div className="border-t border-gray-100 p-4" style={{ flexShrink: 0 }}>
-          <div className="flex gap-3">
+        <div className={`border-t border-gray-100 ${padding === 'p-2' ? 'p-2' : 'p-3'}`} style={{ flexShrink: 0 }}>
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={handleClose}
               className="btn-secondary flex-1"
             >
+              <X size={16} className="mr-2" />
               Cancelar
             </button>
             <button
@@ -319,6 +321,7 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
               className="btn flex-1"
               disabled={!formData.name.trim()}
             >
+              <Check size={16} className="mr-2" />
               Criar Lista
             </button>
           </div>
