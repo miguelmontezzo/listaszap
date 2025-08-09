@@ -1,5 +1,5 @@
 
-const BASE = import.meta.env.VITE_N8N_BASE
+const BASE = import.meta.env.VITE_N8N_BASE || 'http://localhost:3000'
 const HEADERS = { 'Content-Type': 'application/json' }
 
 export async function post<T=any>(path: string, body: any) {
