@@ -113,7 +113,10 @@ export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberPro
           {/* Indicador de adicionar - sempre visível */}
           <div 
             className="w-9 h-9 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 hover:border-green-400 hover:text-green-500 transition-colors cursor-pointer ml-1"
-            onClick={() => document.querySelector('input[placeholder*="Nome ou contato"]')?.focus()}
+            onClick={() => {
+              const input = document.querySelector('input[placeholder*="Nome ou contato"]') as HTMLInputElement
+              input?.focus()
+            }}
             title="Adicionar membro"
           >
             <Plus size={16} />

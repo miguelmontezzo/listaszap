@@ -158,7 +158,8 @@ export const mockApi = {
     const newItem = {
       id: Date.now().toString(),
       ...data,
-      userId: '1'
+      userId: '1',
+      price: 0 // Preço padrão para novos itens
     }
     mockItems.push(newItem)
     return newItem
