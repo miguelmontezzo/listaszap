@@ -28,8 +28,8 @@ export function VerifyOtp(){
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
-          <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl">
-            <span className="text-white font-bold text-2xl">✓</span>
+          <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl">
+            <img src="/favicon.ico" alt="ListasZap" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Digite o código</h1>
