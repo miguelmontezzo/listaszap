@@ -6,10 +6,11 @@ interface ItemRowProps {
   price?: number
   category?: string
   unit?: string
+  createdBy?: string
   onToggle?: (v: boolean) => void
 }
 
-export function ItemRow({ name, checked, qty, price, category, unit, onToggle }: ItemRowProps) {
+export function ItemRow({ name, checked, qty, price, category, unit, createdBy, onToggle }: ItemRowProps) {
   
   const formatQuantity = (qty: number, unit?: string) => {
     if (unit === 'peso') {
@@ -20,6 +21,11 @@ export function ItemRow({ name, checked, qty, price, category, unit, onToggle }:
   return (
     <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-b-0">
       <div className="flex items-center gap-4 flex-1 cursor-pointer">
+        {createdBy && (
+          <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-700 border-2 border-white shadow-sm" title={createdBy}>
+            {createdBy.split(' ').map(w=>w[0]?.toUpperCase()).slice(0,2).join('')}
+          </div>
+        )}
         {/* Custom Checkbox */}
         <div 
           className="relative cursor-pointer"

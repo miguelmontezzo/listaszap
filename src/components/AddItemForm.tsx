@@ -11,9 +11,11 @@ interface AddItemFormProps {
   startInCreateMode?: boolean
   hideCollapsedButton?: boolean
   createOnly?: boolean
+  compact?: boolean
+  itemsCount?: number
 }
 
-export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCreateMode = false, hideCollapsedButton = false, createOnly = false }: AddItemFormProps) {
+export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCreateMode = false, hideCollapsedButton = false, createOnly = false, compact = false, itemsCount = 0 }: AddItemFormProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StorageItem | null>(null)
@@ -41,9 +43,11 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     })
   }, [])
 
-  // Filtrar itens existentes baseado na busca
+  // Normalização acento-insensível
+  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  // Filtrar itens existentes baseado na busca (acento-insensível)
   const filteredItems = allItems.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    normalize(item.name).includes(normalize(searchQuery))
   )
 
   // Mostrar formulário de criação somente quando forçado explicitamente
@@ -146,6 +150,22 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     setFormData(prev => ({ ...prev, name: searchQuery }))
   }
 
+  const handleQuickAdd = () => {
+    const q = searchQuery.trim()
+    if (!q) return
+    // tentar achar melhor correspondência
+    const exact = allItems.find(i => normalize(i.name) === normalize(q))
+    const starts = allItems.find(i => normalize(i.name).startsWith(normalize(q)))
+    const first = filteredItems[0]
+    const chosen = exact || starts || first
+    if (chosen) {
+      handleSelectExistingItem(chosen)
+      return
+    }
+    // se não houver correspondência, abrir criação já com o nome preenchido
+    handleCreateNew()
+  }
+
   const getCategoryColor = (categoryId: string) => {
     const category = allCategories.find(c => c.id === categoryId)
     return category?.color || '#gray'
@@ -163,7 +183,9 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     setShowCategoryDropdown(false)
   }
 
-  if (!isExpanded) {
+  const expanded = compact ? true : isExpanded
+
+  if (!expanded) {
     if (hideCollapsedButton) return null
     return (
       <button
@@ -177,7 +199,12 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
   }
 
   return (
-    <div className="space-y-4 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+    <div className={`${compact ? 'space-y-3' : 'space-y-4 p-4 bg-gray-50 rounded-2xl border border-gray-200'}`}>
+      {compact && (
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-900">Itens ({itemsCount})</h3>
+        </div>
+      )}
       {/* Seleção de Quantidade para Item Existente */}
       {shouldShowQuantitySelection && (
         <>
@@ -303,10 +330,12 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
       {/* Busca de Itens Existentes - priorizada */}
       {!createOnly && !shouldShowCreateForm && !shouldShowQuantitySelection && (
         <>
-          <div className="flex items-center gap-2 mb-3">
-            <Search size={20} className="text-blue-600" />
-            <h3 className="font-medium text-gray-900">Buscar Item Existente</h3>
-          </div>
+          {!compact && (
+            <div className="flex items-center gap-2 mb-3">
+              <Search size={20} className="text-blue-600" />
+              <h3 className="font-medium text-gray-900">Buscar Item Existente</h3>
+            </div>
+          )}
 
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -317,7 +346,19 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
               placeholder="Digite o nome do item..."
               className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
               autoFocus
+              onKeyDown={(e)=>{ if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd() } }}
             />
+            {searchQuery.trim() && (
+              <button
+                type="button"
+                onClick={handleQuickAdd}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center shadow hover:bg-green-700 active:scale-95"
+                title="Adicionar rapidamente"
+                aria-label="Adicionar item"
+              >
+                <Plus size={16} />
+              </button>
+            )}
           </div>
 
           {/* Resultados da Busca */}
@@ -353,45 +394,35 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
             </div>
           )}
 
-          {/* Ação em linha: Criar novo item se nada for encontrado */}
-          <div className="pt-3 flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              {searchQuery ? (filteredItems.length > 0 ? `${filteredItems.length} resultado(s)` : 'Nenhum item encontrado') : 'Digite para buscar'}
-            </div>
-            {searchQuery && (
-              <button
-                onClick={handleCreateNew}
-                className="text-sm text-green-700 hover:text-green-800 font-medium"
-              >
-                + Criar novo
-              </button>
-            )}
-          </div>
+          {/* Removido rodapé de texto/ação; o botão "+" já cria se não houver resultados */}
 
-          {/* Botão opcional para criar item personalizado */}
-          <div className="border-t border-gray-200 pt-3 mt-3">
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="w-full p-3 bg-white border border-gray-300 rounded-xl hover:border-green-400 hover:bg-green-50 transition-colors text-gray-700 hover:text-green-700"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Package size={16} />
-                <span className="font-medium">Criar item personalizado</span>
-              </div>
-            </button>
-          </div>
+          {!compact && (
+            <div className="border-t border-gray-200 pt-3 mt-3">
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="w-full p-3 bg-white border border-gray-300 rounded-xl hover:border-green-400 hover:bg-green-50 transition-colors text-gray-700 hover:text-green-700"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Package size={16} />
+                  <span className="font-medium">Criar item personalizado</span>
+                </div>
+              </button>
+            </div>
+          )}
 
           {/* Botão de cancelar */}
-          <div className="pt-3">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="btn-secondary w-full"
-            >
-              <X size={16} className="mr-2" />
-              Cancelar
-            </button>
-          </div>
+          {!compact && (
+            <div className="pt-3">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="btn-secondary w-full"
+              >
+                <X size={16} className="mr-2" />
+                Cancelar
+              </button>
+            </div>
+          )}
         </>
       )}
 

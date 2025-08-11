@@ -15,6 +15,7 @@ export function EditListSettingsModal({ isOpen, onClose, list, onSaved }: EditLi
   const [splitEnabled, setSplitEnabled] = useState(false)
   const [includeOwner, setIncludeOwner] = useState(false)
   const [listType, setListType] = useState<'personal'|'shared'>('personal')
+  const [allowInvite, setAllowInvite] = useState(false)
 
   useEffect(() => {
     if (!isOpen || !list) return
@@ -23,6 +24,7 @@ export function EditListSettingsModal({ isOpen, onClose, list, onSaved }: EditLi
     setSplitEnabled(!!list.splitEnabled)
     setIncludeOwner(!!list.includeOwnerInSplit)
     setListType(list.type || 'personal')
+    setAllowInvite(!!list.allowMembersToInvite)
   }, [isOpen, list])
 
   if (!list) return null
@@ -37,6 +39,7 @@ export function EditListSettingsModal({ isOpen, onClose, list, onSaved }: EditLi
       // força split desativado quando a lista é pessoal
       splitEnabled: listType === 'personal' ? false : splitEnabled,
       includeOwnerInSplit: listType === 'personal' ? false : includeOwner,
+      allowMembersToInvite: listType === 'personal' ? false : allowInvite,
     })
     onSaved?.(updated)
     onClose()
@@ -78,6 +81,15 @@ export function EditListSettingsModal({ isOpen, onClose, list, onSaved }: EditLi
                   <div className="text-xs text-gray-500">Inclui o dono da lista na divisão</div>
                 </div>
                 <input type="checkbox" className="w-5 h-5" checked={includeOwner} onChange={(e)=>setIncludeOwner(e.target.checked)} />
+              </div>
+            )}
+            {listType==='shared' && (
+              <div className="mt-3 flex items-center justify-between p-3 border border-gray-200 rounded-xl">
+                <div>
+                  <div className="text-sm font-medium text-gray-800">Permitir membros convidarem</div>
+                  <div className="text-xs text-gray-500">Quando desligado, só o dono adiciona membros</div>
+                </div>
+                <input type="checkbox" className="w-5 h-5" checked={allowInvite} onChange={(e)=>setAllowInvite(e.target.checked)} />
               </div>
             )}
           </div>

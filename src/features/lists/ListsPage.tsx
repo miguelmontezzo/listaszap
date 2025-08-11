@@ -23,8 +23,15 @@ export function ListsPage(){
   async function loadLists() {
     try {
       const data = await storage.getLists()
+      // Mostrar apenas listas que pertençam ao usuário ou que ele participe
+      const myDigits = (user?.phone || '').replace(/\D/g, '')
+      const visible = data.filter(list =>
+        (list.userId === user!.id) ||
+        ((list.memberNames || []).includes(user!.name)) ||
+        ((list.memberPhones || []).includes(myDigits))
+      )
       // Calcular estatísticas das listas
-      const listsWithStats = data.map(list => {
+      const listsWithStats = visible.map(list => {
         const checkedItems = list.items.filter(item => item.checked).length
         const totalItems = list.items.length
         const progress = totalItems > 0 ? (checkedItems / totalItems) * 100 : 0
@@ -60,6 +67,8 @@ export function ListsPage(){
     }
   }
 
+  // removido: createDemoMemberList (botão de demo)
+
   return (
     <div className="pt-4 space-y-4">
       <div>
@@ -73,6 +82,7 @@ export function ListsPage(){
       >
         ➕ Nova Lista de Compras
       </button>
+      {/* botão de criar lista demo removido */}
       
       {loading ? (
         <div className="space-y-3">

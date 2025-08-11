@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../../lib/session'
+import { storage } from '../../lib/storage'
 
 export function VerifyOtp(){
   const [code, setCode] = useState('')
@@ -13,9 +14,12 @@ export function VerifyOtp(){
     const phone = sessionStorage.getItem('lz_phone')||''
     setLoading(true)
     try {
-      // Qualquer código com 4+ dígitos é aceito em dev; cria usuário simples
-      const user = { id: '1', phone, name: 'João Silva' }
+      // Qualquer código com 4+ dígitos é aceito; usa o telefone como id estável local
+      const normalized = phone.replace(/\D/g,'')
+      const user = { id: `phone:${normalized}`, phone, name: `Usuário ${normalized.slice(-4)}` }
       setSession({ token: 'local-token', user })
+      // Inicializar storage e seeds para o usuário recém autenticado
+      storage.initForCurrentUser()
       nav('/listas')
     } catch (e:any) {
       alert(e.message||'Erro')

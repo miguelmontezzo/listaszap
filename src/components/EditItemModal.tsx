@@ -70,7 +70,8 @@ export function EditItemModal({ isOpen, onClose, item, onSave, onDelete }: EditI
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Editar Item">
-      <form onSubmit={submit} className="p-4 space-y-4">
+      <form onSubmit={submit} className="flex flex-col h-full">
+        <div className="p-4 space-y-4 flex-1 overflow-y-auto modal-scroll pb-24" style={{ minHeight: 0 }}>
         {/* Header estilo AddItemForm */}
         <div className="flex items-center gap-2">
           <Package size={20} className="text-green-600" />
@@ -186,7 +187,8 @@ export function EditItemModal({ isOpen, onClose, item, onSave, onDelete }: EditI
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2 sticky-safe-bottom bg-white pb-3">
+        </div>
+        <div className="flex gap-2 p-4 border-t border-gray-100 bg-white sticky-safe-bottom">
           {onDelete && (
             <button type="button" className="btn-danger w-1/3" onClick={async () => { await onDelete(item!.id); onClose() }}>Excluir</button>
           )}

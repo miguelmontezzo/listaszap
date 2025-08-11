@@ -60,7 +60,8 @@ export function ItemsPage(){
     }
   }
 
-  const filtered = items.filter(i => i.name.toLowerCase().includes(q.toLowerCase()))
+  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const filtered = items.filter(i => normalize(i.name).includes(normalize(q)))
 
   const grouped = useMemo(() => {
     return items.reduce((acc, i) => {

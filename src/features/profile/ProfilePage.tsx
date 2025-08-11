@@ -2,12 +2,14 @@
 import { useEffect, useState } from 'react'
 import { useSession } from '../../lib/session'
 import { storage } from '../../lib/storage'
+import { SuccessModal } from '../../components/SuccessModal'
 
 export function ProfilePage(){
   const { user, clear } = useSession()
   const [name, setName] = useState(user?.name||'')
   const [email, setEmail] = useState('')
   const [city, setCity] = useState('')
+  const [showSaved, setShowSaved] = useState(false)
 
   useEffect(() => {
     // carregar perfil salvo (se existir)
@@ -33,7 +35,7 @@ export function ProfilePage(){
     if (user) {
       useSession.setState({ user: { ...user, name: profile.name } })
     }
-    alert('Dados salvos!')
+    setShowSaved(true)
   }
 
   return (
@@ -66,6 +68,7 @@ export function ProfilePage(){
       <button className="btn btn-danger w-full" style={{ borderRadius: 20 }} onClick={clear}>
         🚪 Sair da Conta
       </button>
+      <SuccessModal isOpen={showSaved} onClose={()=>setShowSaved(false)} title="Tudo certo!" message="Seus dados foram salvos." />
     </div>
   )
 }

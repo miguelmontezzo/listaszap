@@ -1,19 +1,21 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Users, Split, DollarSign, Settings, Search, X as XIcon } from 'lucide-react'
+import { Users, Split, DollarSign, Settings, Search, X as XIcon, ChevronDown, Link as LinkIcon } from 'lucide-react'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { SuccessModal } from '../../components/SuccessModal'
 import { ItemRow } from '../../components/ItemRow'
 import { EditListItemModal } from '../../components/EditListItemModal'
 import { SearchInput } from '../../components/SearchInput'
 import { AddMember } from '../../components/AddMember'
 import { AddItemForm } from '../../components/AddItemForm'
 import { PixChargeModal } from '../../components/PixChargeModal'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
+// duplicate import removed
 import { EditListSettingsModal } from '../../components/EditListSettingsModal'
 import { storage, type Item as StorageItem, type Category as StorageCategory, type ShoppingList } from '../../lib/storage'
 import { useSession } from '../../lib/session'
 
-type Item = { id: string; name: string; checked: boolean; qty?: number; price?: number; category?: string; unit?: string }
+type Item = { id: string; name: string; checked: boolean; qty?: number; price?: number; category?: string; categoryId?: string; categoryColor?: string; unit?: string }
 type Member = { id: string; name: string }
 
 export function ListDetailPage(){
@@ -31,6 +33,9 @@ export function ListDetailPage(){
   const [confirmDeleteList, setConfirmDeleteList] = useState(false)
   const [showEditList, setShowEditList] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
+  const [confirmLeave, setConfirmLeave] = useState(false)
+  const [leftSuccess, setLeftSuccess] = useState(false)
   // removed explicit delete list button per request
 
   useEffect(()=>{
@@ -52,10 +57,11 @@ export function ListDetailPage(){
       if (Array.isArray(list.memberNames)) {
         setMembers(list.memberNames.map((name, idx) => ({ id: `${idx}`, name })))
       }
-      const catById = new Map(categories.map(c => [c.id, c.name]))
+      const catMetaById = new Map(categories.map(c => [c.id, { name: c.name, color: c.color }]))
       const itemById = new Map(allItems.map(i => [i.id, i]))
       const listItems = list.items.map((listItem: any) => {
         const itemInfo = itemById.get(listItem.itemId)
+        const meta = itemInfo ? catMetaById.get(itemInfo.categoryId) : undefined
         return {
           id: listItem.id,
           name: itemInfo?.name || 'Item não encontrado',
@@ -63,7 +69,9 @@ export function ListDetailPage(){
           qty: listItem.quantity,
           price: listItem.price,
           unit: listItem.unit || (itemInfo?.defaultUnit as any) || 'unidade',
-          category: itemInfo ? catById.get(itemInfo.categoryId) : undefined
+          category: meta?.name,
+          categoryId: itemInfo?.categoryId,
+          categoryColor: meta?.color,
         }
       })
       setItems(listItems)
@@ -96,21 +104,35 @@ export function ListDetailPage(){
   }
 
   async function handleAddMember(nameOrPhone: string) {
-    const newMember: Member = { id: Date.now().toString(), name: nameOrPhone }
+    // tentar resolver para nome de contato quando vier telefone
+    const contacts = await storage.getContacts()
+    const digits = nameOrPhone.replace(/\D/g, '')
+    const match = digits ? contacts.find(c => c.phone.replace(/\D/g,'') === digits) : undefined
+    const memberNameToStore = match?.name || nameOrPhone
+
+    const newMember: Member = { id: Date.now().toString(), name: memberNameToStore }
     setMembers(prev => [...prev, newMember])
     if (listData) {
-      const names = [...(listData.memberNames||[]), nameOrPhone]
-      const updated = await storage.updateList(listData.id, { memberNames: names, memberCount: names.length, type: 'shared' })
+      const names = [...(listData.memberNames||[]), memberNameToStore]
+      const phones = [...(listData.memberPhones||[])]
+      if (digits) phones.push(digits)
+      // salvar membros e telefones
+      let updated = await storage.updateList(listData.id, { memberNames: names, memberPhones: phones, memberCount: names.length, type: 'shared' })
+      // promover para o store compartilhado (idempotente): garante visibilidade para o membro
+      updated = await storage.promoteListToShared(listData.id)
       setListData(updated)
     }
   }
 
   async function handleRemoveMember(id: string) {
+    const removed = members.find(m => m.id === id)
     const next = members.filter(m => m.id !== id)
     setMembers(next)
     if (listData) {
       const names = next.map(m => m.name)
-      const updated = await storage.updateList(listData.id, { memberNames: names, memberCount: names.length })
+      const removedDigits = removed?.name ? removed.name.replace(/\D/g, '') : ''
+      const phones = (listData.memberPhones || []).filter(p => p !== removedDigits)
+      const updated = await storage.updateList(listData.id, { memberNames: names, memberPhones: phones, memberCount: names.length })
       setListData(updated)
     }
   }
@@ -129,19 +151,80 @@ export function ListDetailPage(){
         })
         itemId = created.id
       }
-      await storage.addItemToList(id!, { itemId, quantity: itemData.qty, price: itemData.price, unit: (itemData.unit as any) })
+      const createdBy = user?.name
+      await storage.addItemToList(id!, { itemId, quantity: itemData.qty, price: itemData.price, unit: (itemData.unit as any), createdBy })
       await loadListDetail()
     } catch (e) {
       console.error('Erro ao adicionar item à lista:', e)
     }
   }
 
+  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(q.toLowerCase())
+    normalize(item.name).includes(normalize(q))
   )
 
-  // Verificar se o usuário atual é o dono da lista
+  // Agrupar por categoria para render e lógica de abrir/fechar
+  const groups = useMemo(() => {
+    const map = new Map<string, { name: string; color?: string; items: Item[] }>()
+    for (const it of filteredItems) {
+      const key = it.category || 'Sem categoria'
+      if (!map.has(key)) map.set(key, { name: key, color: it.categoryColor, items: [] })
+      map.get(key)!.items.push(it)
+    }
+    return Array.from(map.values())
+  }, [filteredItems])
+
+  // Abrir categorias por padrão e minimizar automaticamente quando concluídas
+  useEffect(() => {
+    setOpenCats(prev => {
+      const next = { ...prev }
+      for (const g of groups) {
+        const allChecked = g.items.length > 0 && g.items.every(i => !!i.checked)
+        // Se ainda não existe estado, definir: aberto por padrão; mas se já vier concluída, fechar por padrão
+        if (next[g.name] === undefined) {
+          next[g.name] = allChecked ? false : true
+        }
+        // Não forçar fechar novamente se o usuário reabrir manualmente
+      }
+      return next
+    })
+  }, [groups])
+
+  // Verificar se o usuário atual é o dono da lista ou membro (por nome ou telefone)
   const isOwner = listData?.userId === user?.id
+  const myDigits = (user?.phone || '').replace(/\D/g, '')
+  const isMember = !!listData && (
+    listData.type !== 'shared'
+      ? isOwner
+      : ((listData.memberNames || []).includes(user?.name || '') || (listData.memberPhones || []).includes(myDigits))
+  )
+  const isNonParticipant = !!listData && listData.type === 'shared' && !isOwner && !isMember
+
+  const [copied, setCopied] = useState(false)
+
+  function shareList() {
+    const url = window.location.href
+    navigator.clipboard.writeText(url).then(()=>{
+      setCopied(true)
+      window.setTimeout(()=> setCopied(false), 1500)
+    }).catch(()=>{
+      prompt('Copie o link da lista:', url)
+    })
+  }
+
+  async function leaveList() {
+    if (!listData || !user) return
+    const myDigits = (user.phone || '').replace(/\D/g, '')
+    const nextNames = (listData.memberNames||[]).filter(n => n !== user.name)
+    const nextPhones = (listData.memberPhones||[]).filter(p => p !== myDigits)
+    const updated = await storage.updateList(listData.id, { memberNames: nextNames, memberPhones: nextPhones, memberCount: nextNames.length })
+    setListData(updated)
+    setLeftSuccess(true)
+    setTimeout(()=>{
+      window.history.back()
+    }, 300)
+  }
 
   // Verificar se pode cobrar (divisão ativa, gastos e itens marcados)
   const canCharge = isOwner && listData?.type === 'shared' && !!listData?.splitEnabled && items.some(i => i.checked) && totals.real > 0
@@ -175,9 +258,23 @@ export function ListDetailPage(){
             <h1 className="text-lg font-bold text-gray-900">{listData.name}</h1>
             {listData.description && <p className="text-xs text-gray-500">{listData.description}</p>}
           </div>
-          <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200" onClick={()=>setShowEditList(true)}>
-            <Settings size={18} className="text-gray-700" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!isNonParticipant && (
+              <div className="relative">
+                <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200" onClick={shareList} title="Copiar link da lista">
+                  <LinkIcon size={18} className="text-gray-700" />
+                </button>
+                {copied && (
+                  <span className="absolute -top-2 right-0 translate-y-[-100%] text-[10px] bg-green-600 text-white px-2 py-0.5 rounded-full shadow">Copiado!</span>
+                )}
+              </div>
+            )}
+            {isOwner && (
+              <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200" onClick={()=>setShowEditList(true)}>
+                <Settings size={18} className="text-gray-700" />
+              </button>
+            )}
+          </div>
         </div>
         <div>
           <div className="flex items-center justify-between">
@@ -194,19 +291,28 @@ export function ListDetailPage(){
         </div>
       </div>
 
-      {/* Seção de Membros - aparece somente para listas compartilhadas */}
-      {listData.type === 'shared' && (
+      {/* Seção de Membros - aparece somente para listas compartilhadas (esconde se não participante) */}
+      {listData.type === 'shared' && !isNonParticipant && (
         <div className="card">
           <AddMember
             members={members}
-            onAddMember={handleAddMember}
+            onAddMember={(name)=>{
+              if (!isOwner && !listData?.allowMembersToInvite) {
+                alert('Somente o dono da lista pode adicionar membros.')
+                return
+              }
+              handleAddMember(name)
+            }}
             onRemoveMember={handleRemoveMember}
+            allowRemove={isOwner}
+            canAdd={isOwner || !!listData?.allowMembersToInvite}
           />
         </div>
       )}
       
 
-      {/* Seção de Adicionar Item + Botão de Busca */}
+      {/* Seção de Adicionar Item (compacto estilo membros) - oculta se não participante */}
+      {!isNonParticipant && (
       <div className="card space-y-3">
         {showSearch && (
           <div className="relative">
@@ -221,33 +327,23 @@ export function ListDetailPage(){
             </button>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="btn flex-1"
-            onClick={() => setShowAddItem(prev => !prev)}
-          >
-            + Adicionar Item
-          </button>
-          <button
-            type="button"
-            aria-label="Buscar itens"
-            className="w-12 h-12 rounded-full bg-green-600 text-white flex items-center justify-center shadow-md hover:bg-green-700 active:scale-95"
-            onClick={() => setShowSearch(true)}
-          >
-            <Search size={18} />
-          </button>
-        </div>
         <AddItemForm
           onAddItem={handleAddItem}
-          isExpanded={showAddItem}
-          onToggleExpanded={() => setShowAddItem(prev => !prev)}
+          isExpanded={true}
+          onToggleExpanded={() => {}}
           hideCollapsedButton
+          compact
+          itemsCount={items.length}
         />
       </div>
+      )}
 
       {/* Lista de Itens - por categoria minimizada */}
-      {items.length === 0 ? (
+      {isNonParticipant ? (
+        <div className="card">
+          <div className="text-center text-gray-500 py-8">Você não participa desta lista. O conteúdo está oculto.</div>
+        </div>
+      ) : items.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,20 +355,29 @@ export function ListDetailPage(){
         </div>
       ) : (
         (()=>{
-          const grouped = filteredItems.reduce((acc: Record<string, typeof filteredItems>, it)=>{
-            const key = it.category || 'Sem categoria'
-            if (!acc[key]) acc[key] = [] as any
-            acc[key].push(it)
-            return acc
-          }, {})
           return (
             <div className="space-y-3">
-              {Object.entries(grouped).map(([catName, list]) => (
+              {groups.map(group => {
+                const catName = group.name
+                const open = !!openCats[catName]
+                const allChecked = group.items.length > 0 && group.items.every(i => !!i.checked)
+                return (
                 <div key={catName} className="card">
                   <div className="py-2 px-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-900">{catName}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: group.color || '#e5e7eb' }} />
+                      <span className={`text-sm font-semibold ${allChecked ? 'line-through text-gray-400' : 'text-gray-900'}`}>{catName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="p-1 rounded hover:bg-gray-100"
+                      onClick={()=> setOpenCats(prev=>({ ...prev, [catName]: !prev[catName] }))}
+                      aria-label={open ? 'Minimizar categoria' : 'Expandir categoria'}
+                    >
+                      <ChevronDown size={16} className={`text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+                    </button>
                   </div>
-                  {list.map(i => (
+                  {open && group.items.map(i => (
                     <button key={i.id} className="w-full text-left" onClick={()=>setEditingListItem(i)}>
                       <ItemRow 
                         name={i.name}
@@ -281,12 +386,13 @@ export function ListDetailPage(){
                         price={i.price}
                         category={i.category}
                         unit={i.unit}
+                        createdBy={i as any as { createdBy?: string } && (i as any).createdBy}
                         onToggle={(v)=>toggle(i.id, v)}
                       />
                     </button>
                   ))}
                 </div>
-              ))}
+              )})}
               {filteredItems.length === 0 && q && (
                 <div className="text-center py-8 text-gray-500">
                   <p>Nenhum item encontrado para "{q}"</p>
@@ -300,6 +406,7 @@ export function ListDetailPage(){
       {/* Toggle de dividir custos foi movido para o modal de configurações */}
 
       {/* Card de Valor Total - Fixo entre itens e ações abaixo (como antes) */}
+      {!isNonParticipant && (
       <div className="card border border-green-100 sticky-safe-bottom bg-white z-10" style={{ 
         padding: '20px',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)'
@@ -324,8 +431,10 @@ export function ListDetailPage(){
           </div>
         )}
       </div>
+      )}
 
       {/* Ações: Cobrar + Excluir lado a lado */}
+      {!isNonParticipant && isOwner && (
       <div className="px-4 pb-4">
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -342,6 +451,27 @@ export function ListDetailPage(){
           <button className="btn-danger w-full py-3 rounded-xl" onClick={()=>setConfirmDeleteList(true)}>Excluir Lista</button>
         </div>
       </div>
+      )}
+      {!isNonParticipant && !isOwner && (
+        <div className="px-4 pb-4">
+          <button className="btn-secondary w-full py-3 rounded-xl" onClick={()=>setConfirmLeave(true)}>Sair da Lista</button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={confirmLeave}
+        title="Sair da lista"
+        description="Tem certeza que deseja sair desta lista? Você não verá mais esta lista nas suas Listas."
+        confirmLabel="Sair"
+        onCancel={()=>setConfirmLeave(false)}
+        onConfirm={async()=>{ setConfirmLeave(false); await leaveList() }}
+      />
+      <SuccessModal
+        isOpen={leftSuccess}
+        onClose={()=>setLeftSuccess(false)}
+        title="Você saiu da lista"
+        message="Esta lista não aparecerá mais nas suas Listas."
+      />
 
       {/* Status de cobrança/pagamento foi movido para a tela de Contas */}
 
