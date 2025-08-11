@@ -228,7 +228,7 @@ body {
 
 .tabbar .container {
   @apply flex w-full items-center justify-between;
-  padding: 8px 16px;
+  padding: 6px 16px;
 }
 
 /* Desktop responsiveness */
@@ -248,24 +248,24 @@ body {
 .tabbtn { 
   @apply flex-1 flex flex-col items-center justify-center;
   @apply transition-all duration-200 active:scale-95 touch-manipulation;
-  padding: 10px 8px 12px 8px;
-  min-height: 68px;
+  padding: 8px 6px 10px 6px;
+  min-height: 56px;
   color: hsl(var(--text-muted));
-  gap: 6px;
+  gap: 4px;
   max-width: 80px;
 }
 
 .tabbtn .icon-container {
-  @apply w-8 h-8 rounded-2xl flex items-center justify-center transition-all duration-200;
+  @apply w-7 h-7 rounded-2xl flex items-center justify-center transition-all duration-200;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .tabbtn .label {
-  @apply text-xs font-medium;
+  @apply text-[11px] font-medium;
   line-height: 1;
-  height: 12px;
+  height: 11px;
   display: flex;
   align-items: center;
 }
@@ -275,8 +275,8 @@ body {
   @apply px-4;
   width: 100%;
   max-width: 100vw;
-  /* Reduz o padding inferior para apenas a altura da tabbar + safe area */
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  /* Padding inferior alinhado à altura mínima da tabbar + safe area */
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
   min-height: calc(100vh - 64px);
 }
 
@@ -330,7 +330,7 @@ body {
   @apply transition-all duration-200 active:scale-95 touch-manipulation;
   background: hsl(var(--primary));
   box-shadow: 0 4px 12px hsl(var(--primary) / 0.3);
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  bottom: calc(76px + env(safe-area-inset-bottom));
   right: 16px;
   z-index: 40;
 }
