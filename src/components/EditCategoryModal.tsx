@@ -68,7 +68,7 @@ export function EditCategoryModal({ isOpen, onClose, initial, onSave, onDelete, 
         {nameInUse && (
           <div className="text-xs text-red-600">Já existe uma categoria com este nome.</div>
         )}
-        <div className="flex gap-2 sticky bottom-0 bg-white pb-3">
+        <div className="flex gap-2 sticky-safe-bottom bg-white pb-3">
           {onDelete && (
             <button type="button" className="btn-danger w-1/3" onClick={()=> setConfirmOpen(true)}>Excluir</button>
           )}

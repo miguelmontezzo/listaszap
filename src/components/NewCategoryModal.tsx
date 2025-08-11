@@ -63,7 +63,7 @@ export function NewCategoryModal({ isOpen, onClose, onCreate, existingNames = []
             />
           </div>
         </div>
-        <div className="flex gap-2 sticky bottom-0 bg-white pb-3">
+        <div className="flex gap-2 sticky-safe-bottom bg-white pb-3">
           <button type="button" onClick={handleClose} className="btn-secondary w-1/2">Cancelar</button>
           <button type="submit" className="btn w-1/2" disabled={!name.trim() || nameInUse}>Criar</button>
         </div>

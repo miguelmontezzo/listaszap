@@ -18,6 +18,9 @@
   --text-muted: 220 5% 65%;        /* #9CA3AF - Muted Text */
   --border: 220 13% 91%;           /* #E5E7EB - Border Color */
   --shadow: 220 13% 88%;           /* #D1D5DB - Shadow Color */
+  /* Layout constants */
+  --tabbar-height: 64px;
+  --topbar-height: 64px;
 }
 
 /* Mobile-first base styles */
@@ -224,6 +227,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   box-shadow: 0 -2px 8px 0 hsl(var(--shadow) / 0.1);
   z-index: 50;
+  min-height: var(--tabbar-height);
 }
 
 .tabbar .container {
@@ -276,8 +280,11 @@ body {
   width: 100%;
   max-width: 100vw;
   /* Padding inferior alinhado à altura mínima da tabbar + safe area */
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
-  min-height: calc(100vh - 64px);
+  padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+  /* Padding superior para compensar a topbar fixa + safe area */
+  padding-top: calc(var(--topbar-height) + env(safe-area-inset-top));
+  /* Altura mínima descontando topbar e tabbar */
+  min-height: calc(100vh - var(--tabbar-height) - var(--topbar-height) - env(safe-area-inset-top));
 }
 
 /* Desktop responsiveness */
@@ -289,12 +296,13 @@ body {
 
 /* Mobile-first topbar */
 .topbar { 
-  @apply sticky top-0 z-50 border-b w-full;
+  @apply fixed top-0 left-0 right-0 z-50 border-b w-full;
   background: hsl(var(--bg) / 0.95);
   border-color: hsl(var(--border));
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding-top: env(safe-area-inset-top);
+  min-height: var(--topbar-height);
 }
 
 .topbar .container {
@@ -365,6 +373,26 @@ body {
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+}
+
+/* Safe bottom helpers (PWA/iOS) */
+.sticky-safe-bottom {
+  position: sticky;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+}
+
+.fixed-safe-bottom {
+  position: fixed;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+}
+
+/* Toast container above tabbar with safe area */
+.toast-container {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--tabbar-height) + 16px + env(safe-area-inset-bottom));
+  z-index: 60;
 }
 
 /* Safe area handling for iOS */

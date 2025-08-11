@@ -186,7 +186,7 @@ export function EditItemModal({ isOpen, onClose, item, onSave, onDelete }: EditI
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2 sticky bottom-0 bg-white pb-3">
+        <div className="flex gap-2 pt-2 sticky-safe-bottom bg-white pb-3">
           {onDelete && (
             <button type="button" className="btn-danger w-1/3" onClick={async () => { await onDelete(item!.id); onClose() }}>Excluir</button>
           )}

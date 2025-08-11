@@ -246,7 +246,7 @@ export function ListDetailPage(){
       {/* Toggle de dividir custos foi movido para o modal de configurações */}
 
       {/* Card de Valor Total - Fixo entre itens e ações abaixo (como antes) */}
-      <div className="card border border-green-100 sticky bottom-0 bg-white z-10" style={{ 
+      <div className="card border border-green-100 sticky-safe-bottom bg-white z-10" style={{ 
         padding: '20px',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)'
       }}>
