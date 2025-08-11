@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Plus, Package, ChevronDown, X, Search, Scale, Hash } from 'lucide-react'
 import { storage, type Item as StorageItem, type Category as StorageCategory } from '../lib/storage'
 import { QuantityStepper } from './QuantityStepper'
+import { NewCategoryModal } from './NewCategoryModal'
 
 interface AddItemFormProps {
   onAddItem: (item: { itemId?: string; name: string; categoryId?: string; price?: number; qty?: number; unit?: string }) => void
@@ -31,6 +32,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
   })
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([storage.getItems(), storage.getCategories()]).then(([items, cats]) => {
@@ -152,6 +154,13 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
   const getCategoryName = (categoryId: string) => {
     const category = allCategories.find(c => c.id === categoryId)
     return category?.name || 'Categoria'
+  }
+
+  const handleCreateCategory = async (data: { name: string; color: string }) => {
+    const created = await storage.createCategory({ name: data.name, color: data.color })
+    setAllCategories(prev => [...prev, created])
+    setFormData(prev => ({ ...prev, category: created.id }))
+    setShowCategoryDropdown(false)
   }
 
   if (!isExpanded) {
@@ -463,6 +472,16 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
 
               {showCategoryDropdown && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+              <button
+                type="button"
+                className="w-full text-left p-3 hover:bg-gray-50 cursor-pointer flex items-center gap-2 border-b border-gray-100 text-green-700"
+                onClick={() => {
+                  setIsNewCategoryOpen(true)
+                }}
+              >
+                <Plus size={16} />
+                <span>Criar nova categoria</span>
+              </button>
               <div
                 className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
                 onClick={() => {
@@ -542,10 +561,10 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
         )}
       </div>
 
-      {/* Preço */}
+      {/* Preço por unidade/peso */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Preço Estimado (opcional)
+          {formData.unit === 'peso' ? 'Preço por kg (opcional)' : 'Preço por unidade (opcional)'}
         </label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
@@ -555,12 +574,29 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
             type="number"
             value={formData.price}
             onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-            placeholder="0,00"
+            placeholder={formData.unit === 'peso' ? 'Preço do kg' : 'Preço da unidade'}
             step="0.01"
             min="0"
             className="w-full px-3 py-3 pl-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
           />
         </div>
+        {formData.price && (
+          <div className="bg-green-50 p-3 rounded-xl border border-green-200 mt-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-green-700">Preço Total</div>
+              <div className="font-bold text-lg text-green-700">
+                {(() => {
+                  const unitPrice = parseFloat(formData.price) || 0
+                  const quantity = formData.unit === 'peso' ? (parseFloat(formData.qty) || 1) : (parseInt(formData.qty) || 1)
+                  return `R$ ${(unitPrice * quantity).toFixed(2)}`
+                })()}
+              </div>
+            </div>
+            <div className="text-xs text-green-600 mt-1">
+              {formData.qty} {formData.unit === 'peso' ? 'kg' : 'unidades'} × R$ {parseFloat(formData.price||'0').toFixed(2)}
+            </div>
+          </div>
+        )}
       </div>
 
           {/* Botões do formulário de criação */}
@@ -584,6 +620,12 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
           </div>
         </form>
       )}
+      <NewCategoryModal
+        isOpen={isNewCategoryOpen}
+        onClose={() => setIsNewCategoryOpen(false)}
+        onCreate={handleCreateCategory}
+        existingNames={allCategories.map(c => c.name)}
+      />
     </div>
   )
 }

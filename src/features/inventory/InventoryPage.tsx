@@ -6,6 +6,7 @@ import { EditCategoryModal } from '../../components/EditCategoryModal'
 import { EditItemModal } from '../../components/EditItemModal'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useToast } from '../../components/Toast'
+import { ChevronDown } from 'lucide-react'
 
 type Item = StorageItem & { categoryName?: string }
 
@@ -19,6 +20,7 @@ export function InventoryPage() {
   const [editingItem, setEditingItem] = useState<StorageItem | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id?: string }>({ open: false })
   const { show } = useToast()
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     loadAll()
@@ -50,6 +52,10 @@ export function InventoryPage() {
     }
     return Array.from(map.values()).filter(g => g.items.length > 0 || g.id !== 'no-cat')
   }, [items, categories])
+
+  function toggleGroup(id: string) {
+    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   return (
     <div className="pt-4 space-y-4">
@@ -112,37 +118,41 @@ export function InventoryPage() {
         <div className="text-center py-12 text-neutral-500">Nenhum item cadastrado</div>
       ) : (
         <div className="space-y-3">
-          {groups.map(g => (
-            <div key={g.id} className="card divide-y divide-neutral-100">
-              <div className="py-3 px-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color || '#e5e7eb' }} />
-                  <div className="text-sm font-medium text-gray-700">{g.name}</div>
-                </div>
-                {g.id !== 'no-cat' && (
-                  <button className="text-xs text-green-600" onClick={() => setEditingCat(categories.find(c => c.id === g.id) || null)}>Editar categoria</button>
-                )}
-              </div>
-              {g.items.map(i => (
-                <button
-                  key={i.id}
-                  className="w-full text-left py-3 flex items-center justify-between hover:bg-gray-50 px-2"
-                  onClick={() => setEditingItem(i)}
-                >
-                  <div>
-                    <div className="font-medium">{i.name}</div>
-                    <div className="text-xs text-neutral-500">{g.name}</div>
-                  </div>
-                  {typeof i.price === 'number' && (
-                    <div className="text-right">
-                      <div className="font-semibold text-gray-900">R$ {i.price.toFixed(2).replace('.', ',')}</div>
-                      <div className="text-xs text-gray-400">padrão</div>
-                    </div>
+          {groups.map(g => {
+            const open = !!openGroups[g.id]
+            return (
+              <div key={g.id} className="card divide-y divide-neutral-100">
+                <div className="py-3 px-2 flex items-center justify-between">
+                  <button type="button" className="flex items-center gap-2" onClick={() => toggleGroup(g.id)}>
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color || '#e5e7eb' }} />
+                    <div className="text-sm font-semibold text-gray-900">{g.name}</div>
+                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+                  </button>
+                  {g.id !== 'no-cat' && (
+                    <button className="text-xs text-green-600" onClick={() => setEditingCat(categories.find(c => c.id === g.id) || null)}>Editar categoria</button>
                   )}
-                </button>
-              ))}
-            </div>
-          ))}
+                </div>
+                {open && g.items.map(i => (
+                  <button
+                    key={i.id}
+                    className="w-full text-left py-3 flex items-center justify-between hover:bg-gray-50 px-2"
+                    onClick={() => setEditingItem(i)}
+                  >
+                    <div>
+                      <div className="font-medium">{i.name}</div>
+                      <div className="text-xs text-neutral-500">{g.name}</div>
+                    </div>
+                    {typeof i.price === 'number' && (
+                      <div className="text-right">
+                        <div className="font-semibold text-gray-900">R$ {i.price.toFixed(2).replace('.', ',')}</div>
+                        <div className="text-xs text-gray-400">padrão</div>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )
+          })}
         </div>
       )}
 

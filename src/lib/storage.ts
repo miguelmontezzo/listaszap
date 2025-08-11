@@ -28,6 +28,61 @@ export type ShoppingList = {
   }
 }
 
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'default-carnes', name: 'Carnes', color: '#ef4444' },
+  { id: 'default-bebidas', name: 'Bebidas', color: '#3b82f6' },
+  { id: 'default-frutas', name: 'Frutas', color: '#22c55e' },
+  { id: 'default-verduras', name: 'Verduras e Legumes', color: '#16a34a' },
+  { id: 'default-padaria', name: 'Padaria', color: '#f59e0b' },
+  { id: 'default-laticinios', name: 'Laticínios', color: '#60a5fa' },
+  { id: 'default-mercearia', name: 'Mercearia', color: '#a78bfa' },
+  { id: 'default-higiene', name: 'Higiene Pessoal', color: '#06b6d4' },
+  { id: 'default-limpeza', name: 'Produtos de Limpeza', color: '#10b981' },
+  { id: 'default-pet', name: 'Pet', color: '#f472b6' },
+  { id: 'default-bebes', name: 'Bebês', color: '#fb923c' },
+]
+
+const DEFAULT_ITEMS: Item[] = [
+  // Carnes (preço por kg)
+  { id: 'seed-picanha', name: 'Picanha', categoryId: 'default-carnes', price: 70, defaultUnit: 'peso', defaultQty: 1 },
+  { id: 'seed-frango', name: 'Frango (kg)', categoryId: 'default-carnes', price: 14.9, defaultUnit: 'peso', defaultQty: 1 },
+  { id: 'seed-acem', name: 'Acém (kg)', categoryId: 'default-carnes', price: 32.9, defaultUnit: 'peso', defaultQty: 1 },
+  // Bebidas (unidade)
+  { id: 'seed-agua-1l', name: 'Água 1,5L', categoryId: 'default-bebidas', price: 3.5, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-refrigerante-2l', name: 'Refrigerante 2L', categoryId: 'default-bebidas', price: 9.9, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-suco-caixa', name: 'Suco de Caixinha', categoryId: 'default-bebidas', price: 4.9, defaultUnit: 'unidade', defaultQty: 1 },
+  // Frutas (peso)
+  { id: 'seed-banana', name: 'Banana (kg)', categoryId: 'default-frutas', price: 7.5, defaultUnit: 'peso', defaultQty: 1 },
+  { id: 'seed-maca', name: 'Maçã (kg)', categoryId: 'default-frutas', price: 9.9, defaultUnit: 'peso', defaultQty: 1 },
+  { id: 'seed-laranja', name: 'Laranja (kg)', categoryId: 'default-frutas', price: 6.9, defaultUnit: 'peso', defaultQty: 1 },
+  // Verduras e Legumes (peso)
+  { id: 'seed-tomate', name: 'Tomate (kg)', categoryId: 'default-verduras', price: 8.9, defaultUnit: 'peso', defaultQty: 1 },
+  { id: 'seed-alface', name: 'Alface', categoryId: 'default-verduras', price: 3.5, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-cebola', name: 'Cebola (kg)', categoryId: 'default-verduras', price: 6.5, defaultUnit: 'peso', defaultQty: 1 },
+  // Padaria
+  { id: 'seed-pao-frances', name: 'Pão Francês (kg)', categoryId: 'default-padaria', price: 17.9, defaultUnit: 'peso', defaultQty: 1 },
+  { id: 'seed-pao-de-forma', name: 'Pão de Forma', categoryId: 'default-padaria', price: 8.9, defaultUnit: 'unidade', defaultQty: 1 },
+  // Laticínios
+  { id: 'seed-leite', name: 'Leite 1L', categoryId: 'default-laticinios', price: 4.9, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-queijo', name: 'Queijo Mussarela (kg)', categoryId: 'default-laticinios', price: 39.9, defaultUnit: 'peso', defaultQty: 1 },
+  // Mercearia
+  { id: 'seed-arroz', name: 'Arroz 5kg', categoryId: 'default-mercearia', price: 24.9, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-feijao', name: 'Feijão 1kg', categoryId: 'default-mercearia', price: 9.5, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-acucar', name: 'Açúcar 1kg', categoryId: 'default-mercearia', price: 4.9, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-oleo', name: 'Óleo 900ml', categoryId: 'default-mercearia', price: 7.9, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-sal', name: 'Sal 1kg', categoryId: 'default-mercearia', price: 3.2, defaultUnit: 'unidade', defaultQty: 1 },
+  // Higiene Pessoal
+  { id: 'seed-sabonete', name: 'Sabonete', categoryId: 'default-higiene', price: 2.9, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-pasta-dente', name: 'Pasta de Dente', categoryId: 'default-higiene', price: 5.9, defaultUnit: 'unidade', defaultQty: 1 },
+  // Limpeza
+  { id: 'seed-detergente', name: 'Detergente', categoryId: 'default-limpeza', price: 2.99, defaultUnit: 'unidade', defaultQty: 1 },
+  { id: 'seed-desinfetante', name: 'Desinfetante', categoryId: 'default-limpeza', price: 7.5, defaultUnit: 'unidade', defaultQty: 1 },
+  // Pet
+  { id: 'seed-racao', name: 'Ração 1kg', categoryId: 'default-pet', price: 15.9, defaultUnit: 'unidade', defaultQty: 1 },
+  // Bebês
+  { id: 'seed-fralda', name: 'Fralda', categoryId: 'default-bebes', price: 49.9, defaultUnit: 'unidade', defaultQty: 1 },
+]
+
 const K = {
   categories: 'lz_categories',
   items: 'lz_items',
@@ -54,6 +109,28 @@ function ensureInit(): void {
   if (!localStorage.getItem(K.categories)) writeJson<Category[]>(K.categories, [])
   if (!localStorage.getItem(K.items)) writeJson<Item[]>(K.items, [])
   if (!localStorage.getItem(K.lists)) writeJson<ShoppingList[]>(K.lists, [])
+  // seed de categorias padrão apenas se estiver vazio
+  try {
+    const cats = readJson<Category[]>(K.categories, [])
+    if (Array.isArray(cats) && cats.length === 0) {
+      writeJson(K.categories, DEFAULT_CATEGORIES)
+    }
+  } catch {}
+  // seed de itens padrão apenas se estiver vazio
+  try {
+    const items = readJson<Item[]>(K.items, [])
+    if (Array.isArray(items) && items.length === 0) {
+      writeJson(K.items, DEFAULT_ITEMS)
+    } else if (Array.isArray(items)) {
+      // Backfill básico: se o usuário tiver pouquíssimos itens (ex: entrando agora)
+      // adiciona itens base que não existam ainda por nome, evitando duplicatas.
+      const nameSet = new Set(items.map(i => i.name.trim().toLowerCase()))
+      const missing = DEFAULT_ITEMS.filter(d => !nameSet.has(d.name.trim().toLowerCase()))
+      if (items.length < 5 && missing.length > 0) {
+        writeJson(K.items, [...items, ...missing])
+      }
+    }
+  } catch {}
 }
 
 ensureInit()

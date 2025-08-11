@@ -29,7 +29,7 @@ export function Layout() {
         <ToastContainer />
       </div>
 
-      <nav className="tabbar">
+      <nav className="tabbar" role="navigation" aria-label="Menu principal">
         <div className="container">
           <NavLink to="/listas">
             {({isActive}) => (

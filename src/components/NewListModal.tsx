@@ -31,6 +31,7 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
   const [prefillName, setPrefillName] = useState('')
   const [prefillPhone, setPrefillPhone] = useState('')
   const [openSuggestIndex, setOpenSuggestIndex] = useState<number|null>(null)
+  const [creatingIndex, setCreatingIndex] = useState<number|null>(null)
 
   // carregar dados do storage
   useEffect(() => {
@@ -115,6 +116,7 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
     setPrefillName(isPhone ? '' : value)
     setPrefillPhone(isPhone ? value : '')
     setCreateContactOpen(true)
+    setCreatingIndex(index)
   }
 
   const toggleItem = (itemId: string) => {
@@ -195,6 +197,24 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
                             value={name}
                             onChange={(e)=>updateMemberName(index, e.target.value)}
                             onFocus={()=> setOpenSuggestIndex(index)}
+                            onKeyDown={(e)=>{
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const v = (formData.memberNames[index] || '').trim()
+                                if (!v) return
+                                const match = contacts.find(c => c.name.toLowerCase() === v.toLowerCase() || c.phone.replace(/\D/g,'') === v.replace(/\D/g,''))
+                                if (!match) {
+                                  openCreateContactFor(index)
+                                  setOpenSuggestIndex(null)
+                                } else {
+                                  // Se existir, normaliza o nome pelo contato
+                                  const newNames = [...formData.memberNames]
+                                  newNames[index] = match.name
+                                  setFormData(prev=>({ ...prev, memberNames: newNames }))
+                                  setOpenSuggestIndex(null)
+                                }
+                              }
+                            }}
                           />
                           {openSuggestIndex===index && sugg.length>0 && (
                             <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow">
@@ -293,12 +313,13 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
       onSave={async ({ name, phone }) => {
         await storage.createContact({ name, phone })
         setContacts(await storage.getContacts())
-        // Preenche no primeiro campo vazio
-        const idx = formData.memberNames.findIndex(n => !n.trim())
-        const target = idx === -1 ? 0 : idx
+        // Preenche no índice que originou a criação, se existir, senão no primeiro vazio
+        let target = creatingIndex ?? formData.memberNames.findIndex(n => !n.trim())
+        if (target === -1) target = 0
         const newNames = [...formData.memberNames]
         newNames[target] = name
         setFormData(prev => ({ ...prev, memberNames: newNames }))
+        setCreatingIndex(null)
       }}
     />
     </>

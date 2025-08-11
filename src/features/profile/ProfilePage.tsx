@@ -1,13 +1,40 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from '../../lib/session'
 import { storage } from '../../lib/storage'
 
 export function ProfilePage(){
   const { user, clear } = useSession()
   const [name, setName] = useState(user?.name||'')
-  const [email, setEmail] = useState('joao.silva@example.com')
-  const [city, setCity] = useState('São Paulo - SP')
+  const [email, setEmail] = useState('')
+  const [city, setCity] = useState('')
+
+  useEffect(() => {
+    // carregar perfil salvo (se existir)
+    try {
+      const raw = localStorage.getItem('lz_profile')
+      if (raw) {
+        const p = JSON.parse(raw) as { name?: string; email?: string; city?: string }
+        if (p.name) setName(p.name)
+        if (p.email) setEmail(p.email)
+        if (p.city) setCity(p.city)
+      }
+      // fallback de email/cidade
+      if (!email) setEmail('')
+      if (!city) setCity('')
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleSave() {
+    const profile = { name: name.trim(), email: email.trim(), city: city.trim() }
+    localStorage.setItem('lz_profile', JSON.stringify(profile))
+    // atualiza nome na sessão (mantém id/phone)
+    if (user) {
+      useSession.setState({ user: { ...user, name: profile.name } })
+    }
+    alert('Dados salvos!')
+  }
 
   return (
     <div className="pt-4 space-y-4">
@@ -28,10 +55,10 @@ export function ProfilePage(){
         <div className="text-sm text-neutral-500">Nome</div>
         <input className="input" value={name} onChange={e=>setName(e.target.value)} />
         <div className="text-sm text-neutral-500">E-mail</div>
-        <input className="input" value={email} onChange={e=>setEmail(e.target.value)} />
+        <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Opcional" />
         <div className="text-sm text-neutral-500">Cidade</div>
-        <input className="input" value={city} onChange={e=>setCity(e.target.value)} />
-        <button className="btn w-full">Salvar Alterações</button>
+        <input className="input" value={city} onChange={e=>setCity(e.target.value)} placeholder="Opcional" />
+        <button className="btn w-full" onClick={handleSave}>Salvar Alterações</button>
       </div>
 
       {/* Removido botão de limpar dados conforme solicitado */}

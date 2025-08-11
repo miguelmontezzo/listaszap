@@ -1,11 +1,13 @@
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SearchInput } from '../../components/SearchInput'
-import { storage, type Item as StorageItem } from '../../lib/storage'
+import { storage, type Item as StorageItem, type Category as StorageCategory } from '../../lib/storage'
 import { AddItemForm } from '../../components/AddItemForm'
 import { EditItemModal } from '../../components/EditItemModal'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useToast } from '../../components/Toast'
+import { ChevronDown, PenLine } from 'lucide-react'
+import { EditCategoryModal } from '../../components/EditCategoryModal'
 
 type Item = {
   id: string
@@ -25,6 +27,9 @@ export function ItemsPage(){
   const { show } = useToast()
   const [editing, setEditing] = useState<{ id: string; name: string; categoryId: string; price?: number; defaultUnit?: 'unidade'|'peso'; defaultQty?: number } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id?: string }>({ open: false })
+  const [categories, setCategories] = useState<StorageCategory[]>([])
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
+  const [editingCategory, setEditingCategory] = useState<{ id: string; name: string; color: string } | null>(null)
 
   useEffect(()=>{
     loadItems()
@@ -36,6 +41,7 @@ export function ItemsPage(){
         storage.getItems(),
         storage.getCategories()
       ])
+      setCategories(cats)
       const categoryById = new Map(cats.map(c => [c.id, c.name]))
       const itemsWithCategory: Item[] = (data as StorageItem[]).map(item => ({
         id: item.id,
@@ -55,6 +61,30 @@ export function ItemsPage(){
   }
 
   const filtered = items.filter(i => i.name.toLowerCase().includes(q.toLowerCase()))
+
+  const grouped = useMemo(() => {
+    return items.reduce((acc, i) => {
+      const catName = i.category || 'Sem categoria'
+      if (!acc[catName]) acc[catName] = []
+      acc[catName].push(i)
+      return acc
+    }, {} as Record<string, Item[]>)
+  }, [items])
+
+  const colorByCategoryName = useMemo(() => {
+    const map = new Map<string, string>()
+    categories.forEach(c => map.set(c.name, c.color))
+    return map
+  }, [categories])
+
+  function toggleCat(name: string) {
+    setOpenCats(prev => ({ ...prev, [name]: !prev[name] }))
+  }
+
+  function openEditCategoryByName(catName: string) {
+    const cat = categories.find(c => c.name === catName)
+    if (cat) setEditingCategory({ id: cat.id, name: cat.name, color: cat.color })
+  }
 
   async function handleUpdateName(id: string, newName: string, oldName: string) {
     const name = newName.trim()
@@ -130,34 +160,106 @@ export function ItemsPage(){
         <div className="text-center py-8 text-neutral-500">
           Carregando itens...
         </div>
-      ) : filtered.length === 0 ? (
+      ) : q ? (
+        filtered.length === 0 ? (
         <div className="text-center py-8 text-neutral-500">
           {q ? 'Nenhum item encontrado' : 'Nenhum item cadastrado'}
         </div>
-      ) : (
-        <div className="card divide-y divide-neutral-100">
-          {filtered.map(i => (
-            <button
-              key={i.id}
-              className="w-full text-left py-3 flex items-center justify-between hover:bg-gray-50 px-2 rounded-lg"
-              onClick={() => setEditing({ id: i.id, name: i.name, categoryId: i.categoryId, price: i.price, defaultUnit: i.defaultUnit, defaultQty: i.defaultQty })}
-            >
-              <div>
-                <div className="font-medium">{i.name}</div>
-                <div className="text-xs text-neutral-500">{i.category || 'Sem categoria'}</div>
-              </div>
-              {typeof i.price === 'number' ? (
-                <div className="text-right">
-                  <div className="font-semibold text-gray-900">R$ {i.price.toFixed(2).replace('.', ',')}</div>
-                  <div className="text-xs text-gray-400">padrão</div>
+        ) : (
+          <div className="card divide-y divide-neutral-100">
+            {filtered.map(i => (
+              <button
+                key={i.id}
+                className="w-full text-left py-3 flex items-center justify-between hover:bg-gray-50 px-2 rounded-lg"
+                onClick={() => setEditing({ id: i.id, name: i.name, categoryId: i.categoryId, price: i.price, defaultUnit: i.defaultUnit, defaultQty: i.defaultQty })}
+              >
+                <div>
+                  <div className="font-medium">{i.name}</div>
+                  <div className="text-xs text-neutral-500">{i.category || 'Sem categoria'}</div>
                 </div>
-              ) : (
-                <span className="text-xs text-gray-400">Editar</span>
-              )}
-            </button>
-          ))}
-        </div>
+                {typeof i.price === 'number' ? (
+                  <div className="text-right">
+                    <div className="font-semibold text-gray-900">R$ {i.price.toFixed(2).replace('.', ',')}</div>
+                    <div className="text-xs text-gray-400">padrão</div>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400">Editar</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )
+      ) : (
+        // visão agrupada por categoria (sem busca)
+        Object.keys(grouped).length === 0 ? (
+          <div className="text-center py-8 text-neutral-500">Nenhum item cadastrado</div>
+        ) : (
+          <div className="space-y-3">
+            {Object.entries(grouped).map(([catName, list]) => {
+              const open = !!openCats[catName]
+              const color = colorByCategoryName.get(catName)
+              return (
+                <div key={catName} className="card">
+                  <div className="w-full flex items-center justify-between">
+                    <button type="button" className="flex items-center gap-3" onClick={() => toggleCat(catName)}>
+                      {color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />}
+                      <span className="font-semibold text-gray-900">{catName}</span>
+                      <span className="text-xs text-gray-500">{list.length}</span>
+                      <ChevronDown size={16} className={`ml-1 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+                    </button>
+                    <button
+                      type="button"
+                      className="text-green-700 hover:text-green-800 text-sm inline-flex items-center gap-1"
+                      onClick={() => openEditCategoryByName(catName)}
+                    >
+                      <PenLine size={14} /> Editar categoria
+                    </button>
+                  </div>
+                  {open && (
+                    <div className="divide-y divide-neutral-100 mt-3">
+                      {list.map(i => (
+                        <button
+                          key={i.id}
+                          className="w-full text-left py-3 flex items-center justify-between hover:bg-gray-50 px-2 rounded-lg"
+                          onClick={() => setEditing({ id: i.id, name: i.name, categoryId: i.categoryId, price: i.price, defaultUnit: i.defaultUnit, defaultQty: i.defaultQty })}
+                        >
+                          <div>
+                            <div className="font-medium">{i.name}</div>
+                            <div className="text-xs text-neutral-500">{i.category || 'Sem categoria'}</div>
+                          </div>
+                          {typeof i.price === 'number' ? (
+                            <div className="text-right">
+                              <div className="font-semibold text-gray-900">R$ {i.price.toFixed(2).replace('.', ',')}</div>
+                              <div className="text-xs text-gray-400">padrão</div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">Editar</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )
       )}
+
+      <EditCategoryModal
+        isOpen={!!editingCategory}
+        onClose={() => setEditingCategory(null)}
+        initial={editingCategory}
+        existingNames={categories.map(c => c.name)}
+        onSave={async ({ id, name, color }) => {
+          await storage.updateCategory(id, { name, color })
+          await loadItems()
+        }}
+        onDelete={async (id: string) => {
+          await storage.deleteCategory(id)
+          await loadItems()
+        }}
+      />
       <EditItemModal
         isOpen={!!editing}
         onClose={() => setEditing(null)}

@@ -1,7 +1,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Users, Split, DollarSign, Settings } from 'lucide-react'
+import { Users, Split, DollarSign, Settings, Search, X as XIcon } from 'lucide-react'
 import { ItemRow } from '../../components/ItemRow'
 import { EditListItemModal } from '../../components/EditListItemModal'
 import { SearchInput } from '../../components/SearchInput'
@@ -30,6 +30,7 @@ export function ListDetailPage(){
   const [editingListItem, setEditingListItem] = useState<any>(null)
   const [confirmDeleteList, setConfirmDeleteList] = useState(false)
   const [showEditList, setShowEditList] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   // removed explicit delete list button per request
 
   useEffect(()=>{
@@ -119,7 +120,13 @@ export function ListDetailPage(){
       let itemId = itemData.itemId
       if (!itemId) {
         // criar item novo
-        const created = await storage.createItem({ name: itemData.name, categoryId: itemData.categoryId || '' })
+        const created = await storage.createItem({
+          name: itemData.name,
+          categoryId: itemData.categoryId || '',
+          price: typeof itemData.price === 'number' ? itemData.price : undefined,
+          defaultUnit: (itemData.unit as any) || 'unidade',
+          defaultQty: typeof itemData.qty === 'number' ? itemData.qty : 1,
+        })
         itemId = created.id
       }
       await storage.addItemToList(id!, { itemId, quantity: itemData.qty, price: itemData.price, unit: (itemData.unit as any) })
@@ -199,13 +206,43 @@ export function ListDetailPage(){
       )}
       
 
-      {/* Seção de Busca e Adicionar Item */}
+      {/* Seção de Adicionar Item + Botão de Busca */}
       <div className="card space-y-3">
-        <SearchInput value={q} onChange={setQ} placeholder="Buscar item na lista..." />
+        {showSearch && (
+          <div className="relative">
+            <SearchInput value={q} onChange={setQ} placeholder="Buscar item na lista..." />
+            <button
+              type="button"
+              aria-label="Fechar busca"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              onClick={() => setShowSearch(false)}
+            >
+              <XIcon size={18} />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="btn flex-1"
+            onClick={() => setShowAddItem(prev => !prev)}
+          >
+            + Adicionar Item
+          </button>
+          <button
+            type="button"
+            aria-label="Buscar itens"
+            className="w-12 h-12 rounded-full bg-green-600 text-white flex items-center justify-center shadow-md hover:bg-green-700 active:scale-95"
+            onClick={() => setShowSearch(true)}
+          >
+            <Search size={18} />
+          </button>
+        </div>
         <AddItemForm
           onAddItem={handleAddItem}
           isExpanded={showAddItem}
           onToggleExpanded={() => setShowAddItem(prev => !prev)}
+          hideCollapsedButton
         />
       </div>
 
