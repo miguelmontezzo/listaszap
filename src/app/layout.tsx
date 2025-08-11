@@ -11,8 +11,8 @@ export function Layout() {
       <div className="topbar">
         <div className="container">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg">L</span>
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg">
+              <img src="/favicon.ico" alt="ListasZap" className="w-full h-full object-cover" onError={(e)=>{ (e.currentTarget.parentElement as HTMLElement).innerHTML='<span class=\'text-white font-bold text-lg\'>L</span>' }} />
             </div>
             <div className="font-bold text-xl text-gray-900">ListasZap</div>
           </div>

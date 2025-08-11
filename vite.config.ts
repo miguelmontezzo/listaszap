@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'iconeapp.png'],
       manifest: {
         name: 'ListasZap',
         short_name: 'ListasZap',
@@ -17,22 +18,8 @@ export default defineConfig({
         background_color: '#ffffff',
         theme_color: '#16a34a',
         icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: '/icons/maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
+          { src: '/iconeapp.png', sizes: '192x192', type: 'image/png' },
+          { src: '/iconeapp.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {
