@@ -246,7 +246,7 @@ export function ListDetailPage(){
         />
       </div>
 
-      {/* Lista de Itens */}
+      {/* Lista de Itens - por categoria minimizada */}
       {items.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
@@ -258,26 +258,43 @@ export function ListDetailPage(){
           <p className="text-gray-500 text-sm">Adicione itens à sua lista para começar a organizar suas compras</p>
         </div>
       ) : (
-        <div className="card">
-          {filteredItems.map(i => (
-            <button key={i.id} className="w-full text-left" onClick={()=>setEditingListItem(i)}>
-              <ItemRow 
-                name={i.name} 
-                checked={i.checked} 
-                qty={i.qty} 
-                price={i.price}
-                category={i.category}
-                unit={i.unit}
-                onToggle={(v)=>toggle(i.id, v)} 
-              />
-            </button>
-          ))}
-          {filteredItems.length === 0 && q && (
-            <div className="text-center py-8 text-gray-500">
-              <p>Nenhum item encontrado para "{q}"</p>
+        (()=>{
+          const grouped = filteredItems.reduce((acc: Record<string, typeof filteredItems>, it)=>{
+            const key = it.category || 'Sem categoria'
+            if (!acc[key]) acc[key] = [] as any
+            acc[key].push(it)
+            return acc
+          }, {})
+          return (
+            <div className="space-y-3">
+              {Object.entries(grouped).map(([catName, list]) => (
+                <div key={catName} className="card">
+                  <div className="py-2 px-2 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900">{catName}</div>
+                  </div>
+                  {list.map(i => (
+                    <button key={i.id} className="w-full text-left" onClick={()=>setEditingListItem(i)}>
+                      <ItemRow 
+                        name={i.name}
+                        checked={i.checked}
+                        qty={i.qty}
+                        price={i.price}
+                        category={i.category}
+                        unit={i.unit}
+                        onToggle={(v)=>toggle(i.id, v)}
+                      />
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {filteredItems.length === 0 && q && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Nenhum item encontrado para "{q}"</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          )
+        })()
       )}
 
       {/* Toggle de dividir custos foi movido para o modal de configurações */}

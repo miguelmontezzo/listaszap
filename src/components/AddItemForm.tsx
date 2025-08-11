@@ -46,8 +46,8 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Mostrar formulário de criação se não houver resultados ou se forçado
-  const shouldShowCreateForm = createOnly ? true : (showCreateForm || (searchQuery.length > 0 && filteredItems.length === 0))
+  // Mostrar formulário de criação somente quando forçado explicitamente
+  const shouldShowCreateForm = createOnly ? true : showCreateForm
   
   // Mostrar seleção de quantidade se um item foi selecionado
   const shouldShowQuantitySelection = createOnly ? false : (selectedItem !== null)
@@ -300,7 +300,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
         </>
       )}
 
-      {/* Busca de Itens Existentes */}
+      {/* Busca de Itens Existentes - priorizada */}
       {!createOnly && !shouldShowCreateForm && !shouldShowQuantitySelection && (
         <>
           <div className="flex items-center gap-2 mb-3">
@@ -321,7 +321,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
           </div>
 
           {/* Resultados da Busca */}
-              {searchQuery.length > 0 && filteredItems.length > 0 && (
+          {searchQuery.length > 0 && filteredItems.length > 0 && (
             <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-white">
               {filteredItems.map((item) => {
                 const category = allCategories.find(c => c.id === item.categoryId)
@@ -353,25 +353,22 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
             </div>
           )}
 
-          {/* Opção para criar novo item baseado na busca */}
-          {searchQuery.length > 0 && (
-            <div className="border-t border-gray-200 pt-3">
+          {/* Ação em linha: Criar novo item se nada for encontrado */}
+          <div className="pt-3 flex items-center justify-between">
+            <div className="text-xs text-gray-500">
+              {searchQuery ? (filteredItems.length > 0 ? `${filteredItems.length} resultado(s)` : 'Nenhum item encontrado') : 'Digite para buscar'}
+            </div>
+            {searchQuery && (
               <button
                 onClick={handleCreateNew}
-                className="w-full p-3 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-dashed border-green-300 rounded-xl hover:border-green-400 hover:from-green-100 hover:to-emerald-100 transition-all text-green-700"
+                className="text-sm text-green-700 hover:text-green-800 font-medium"
               >
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Plus size={16} />
-                  <span className="font-medium">Criar "{searchQuery}"</span>
-                </div>
-                <div className="text-xs text-green-600">
-                  Item novo com este nome
-                </div>
+                + Criar novo
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Opção para criar item personalizado */}
+          {/* Botão opcional para criar item personalizado */}
           <div className="border-t border-gray-200 pt-3 mt-3">
             <button
               onClick={() => setShowCreateForm(true)}
@@ -380,9 +377,6 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
               <div className="flex items-center justify-center gap-2">
                 <Package size={16} />
                 <span className="font-medium">Criar item personalizado</span>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Com detalhes específicos (preço, categoria, etc.)
               </div>
             </button>
           </div>
