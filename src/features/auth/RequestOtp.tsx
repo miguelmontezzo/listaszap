@@ -29,7 +29,7 @@ export function RequestOtp(){
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
           <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl">
-            <img src="/favicon.ico" alt="ListasZap" className="w-full h-full object-cover" />
+            <img src="https://i.ibb.co/LXT41BLJ/logoicone.png" alt="ListasZap" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Bem-vindo ao ListasZap</h1>
