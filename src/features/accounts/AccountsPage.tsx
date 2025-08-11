@@ -14,6 +14,9 @@ type ShoppingList = {
   type?: 'personal' | 'shared'
   memberCount?: number
   memberNames?: string[]
+  splitEnabled?: boolean
+  includeOwnerInSplit?: boolean
+  charges?: { byMember: { name: string; status: 'pendente'|'cobrado'|'pago'; proofName?: string }[] }
 }
 
 type AccountEntry = {
@@ -93,7 +96,7 @@ export function AccountsPage() {
         if (isMember) {
           const byMember = list.charges?.byMember || []
           const myName = (user?.name||'').toLowerCase().trim()
-          const me = byMember.find(m => m.name.toLowerCase().trim() === myName) || byMember.find(m => m.name.toLowerCase().includes(myName))
+          const me = byMember.find((m:any) => m.name.toLowerCase().trim() === myName) || byMember.find((m:any) => m.name.toLowerCase().includes(myName))
           const isPaid = me?.status === 'pago'
           entriesToPay.push({ listId: list.id, listName: list.name, amount: perPerson, participants, perPerson, isPaid })
         }

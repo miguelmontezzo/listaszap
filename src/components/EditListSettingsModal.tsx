@@ -29,6 +29,7 @@ export function EditListSettingsModal({ isOpen, onClose, list, onSaved }: EditLi
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!list) return
     const updated = await storage.updateList(list.id, {
       name: name.trim() || list.name,
       description,

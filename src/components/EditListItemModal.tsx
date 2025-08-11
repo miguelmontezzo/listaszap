@@ -31,12 +31,13 @@ export function EditListItemModal({ isOpen, onClose, initial, onSave, onDelete }
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!initial) return
     onSave({ listItemId: initial.id, quantity: unit==='peso' ? parseFloat(qty)||1 : parseInt(qty)||1, price: price ? parseFloat(price.replace(',', '.')) : 0, unit })
     onClose()
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Editar ${initial.name}`} autoHeight>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Editar ${initial?.name || ''}`} autoHeight>
       <form onSubmit={submit} className="p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Quantidade</label>
