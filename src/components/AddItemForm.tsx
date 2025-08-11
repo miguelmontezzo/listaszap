@@ -1,17 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { Plus, Package, ChevronDown, X, Search, Scale, Hash } from 'lucide-react'
-import { mockCategories, mockItems } from '../lib/mockData'
+import { storage, type Item as StorageItem, type Category as StorageCategory } from '../lib/storage'
+import { QuantityStepper } from './QuantityStepper'
 
 interface AddItemFormProps {
-  onAddItem: (item: { name: string; price?: number; category?: string; qty?: number; unit?: string }) => void
+  onAddItem: (item: { itemId?: string; name: string; categoryId?: string; price?: number; qty?: number; unit?: string }) => void
   isExpanded: boolean
   onToggleExpanded: () => void
+  startInCreateMode?: boolean
+  hideCollapsedButton?: boolean
+  createOnly?: boolean
 }
 
-export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItemFormProps) {
+export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCreateMode = false, hideCollapsedButton = false, createOnly = false }: AddItemFormProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<typeof mockItems[0] | null>(null)
+  const [selectedItem, setSelectedItem] = useState<StorageItem | null>(null)
+  const [allItems, setAllItems] = useState<StorageItem[]>([])
+  const [allCategories, setAllCategories] = useState<StorageCategory[]>([])
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -26,16 +32,23 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    Promise.all([storage.getItems(), storage.getCategories()]).then(([items, cats]) => {
+      setAllItems(items)
+      setAllCategories(cats)
+    })
+  }, [])
+
   // Filtrar itens existentes baseado na busca
-  const filteredItems = mockItems.filter(item =>
+  const filteredItems = allItems.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   // Mostrar formulário de criação se não houver resultados ou se forçado
-  const shouldShowCreateForm = showCreateForm || (searchQuery.length > 0 && filteredItems.length === 0)
+  const shouldShowCreateForm = createOnly ? true : (showCreateForm || (searchQuery.length > 0 && filteredItems.length === 0))
   
   // Mostrar seleção de quantidade se um item foi selecionado
-  const shouldShowQuantitySelection = selectedItem !== null
+  const shouldShowQuantitySelection = createOnly ? false : (selectedItem !== null)
 
   // Fechar dropdown quando clicar fora
   useEffect(() => {
@@ -54,6 +67,14 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
     }
   }, [showCategoryDropdown])
 
+  // Quando abrir expandido com startInCreateMode, ir direto ao formulário de criação
+  useEffect(() => {
+    if (isExpanded && startInCreateMode) {
+      setShowCreateForm(true)
+      setSelectedItem(null)
+    }
+  }, [isExpanded, startInCreateMode])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim()) return
@@ -61,7 +82,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
     onAddItem({
       name: formData.name.trim(),
       price: formData.price ? parseFloat(formData.price) : undefined,
-      category: formData.category || undefined,
+      categoryId: formData.category || undefined,
       qty: formData.unit === 'peso' ? parseFloat(formData.qty) || 1 : parseInt(formData.qty) || 1,
       unit: formData.unit
     })
@@ -69,7 +90,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
     resetForm()
   }
 
-  const handleSelectExistingItem = (item: typeof mockItems[0]) => {
+  const handleSelectExistingItem = (item: StorageItem) => {
     setSelectedItem(item)
     // Reset quantity data quando selecionar novo item
     setItemQuantityData({
@@ -81,15 +102,16 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
   const handleConfirmItemWithQuantity = () => {
     if (!selectedItem) return
     
-    const category = mockCategories.find(c => c.id === selectedItem.categoryId)
+    const category = allCategories.find(c => c.id === selectedItem.categoryId)
     const quantity = itemQuantityData.unit === 'peso' ? parseFloat(itemQuantityData.qty) || 1 : parseInt(itemQuantityData.qty) || 1
     
     // Calcular preço baseado na quantidade (se o item tiver preço)
     const itemPrice = selectedItem.price ? selectedItem.price * quantity : undefined
     
     onAddItem({
+      itemId: selectedItem.id,
       name: selectedItem.name,
-      category: category?.name,
+      categoryId: category?.id,
       qty: quantity,
       unit: itemQuantityData.unit,
       price: itemPrice
@@ -112,7 +134,9 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
       qty: '1',
       unit: 'unidade'
     })
-    onToggleExpanded()
+    if (!createOnly) {
+      onToggleExpanded()
+    }
   }
 
   const handleCreateNew = () => {
@@ -121,16 +145,17 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
   }
 
   const getCategoryColor = (categoryId: string) => {
-    const category = mockCategories.find(c => c.id === categoryId)
+    const category = allCategories.find(c => c.id === categoryId)
     return category?.color || '#gray'
   }
 
   const getCategoryName = (categoryId: string) => {
-    const category = mockCategories.find(c => c.id === categoryId)
+    const category = allCategories.find(c => c.id === categoryId)
     return category?.name || 'Categoria'
   }
 
   if (!isExpanded) {
+    if (hideCollapsedButton) return null
     return (
       <button
         onClick={onToggleExpanded}
@@ -155,7 +180,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
           <div className="bg-white p-4 rounded-xl border border-gray-200">
             <div className="flex items-center gap-3 mb-4">
               {(() => {
-                const category = mockCategories.find(c => c.id === selectedItem?.categoryId)
+                const category = allCategories.find(c => c.id === selectedItem?.categoryId)
                 return category ? (
                   <div
                     className="w-4 h-4 rounded-full flex-shrink-0"
@@ -167,7 +192,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
                 <div className="font-medium text-gray-900">{selectedItem?.name}</div>
                 <div className="text-xs text-gray-500">
                   {(() => {
-                    const category = mockCategories.find(c => c.id === selectedItem?.categoryId)
+                    const category = allCategories.find(c => c.id === selectedItem?.categoryId)
                     return category?.name || 'Sem categoria'
                   })()}
                 </div>
@@ -215,20 +240,11 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
               </div>
 
               {/* Campo de Quantidade */}
-              <div className="relative">
-                <input
-                  type="number"
-                  value={itemQuantityData.qty}
-                  onChange={(e) => setItemQuantityData(prev => ({ ...prev, qty: e.target.value }))}
-                  min={itemQuantityData.unit === 'peso' ? '0.001' : '1'}
-                  step={itemQuantityData.unit === 'peso' ? '0.001' : '1'}
-                  className="w-full px-3 py-3 pr-16 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
-                  placeholder={itemQuantityData.unit === 'peso' ? '0.5' : '1'}
-                />
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
-                  {itemQuantityData.unit === 'peso' ? 'kg' : 'un'}
-                </div>
-              </div>
+              <QuantityStepper
+                value={itemQuantityData.qty}
+                unit={itemQuantityData.unit as 'unidade'|'peso'}
+                onChange={(v) => setItemQuantityData(prev => ({ ...prev, qty: v }))}
+              />
               
               {itemQuantityData.unit === 'peso' && (
                 <div className="text-xs text-gray-500 mt-1">
@@ -276,7 +292,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
       )}
 
       {/* Busca de Itens Existentes */}
-      {!shouldShowCreateForm && !shouldShowQuantitySelection && (
+      {!createOnly && !shouldShowCreateForm && !shouldShowQuantitySelection && (
         <>
           <div className="flex items-center gap-2 mb-3">
             <Search size={20} className="text-blue-600" />
@@ -296,10 +312,10 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
           </div>
 
           {/* Resultados da Busca */}
-          {searchQuery.length > 0 && filteredItems.length > 0 && (
+              {searchQuery.length > 0 && filteredItems.length > 0 && (
             <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-white">
               {filteredItems.map((item) => {
-                const category = mockCategories.find(c => c.id === item.categoryId)
+                const category = allCategories.find(c => c.id === item.categoryId)
                 return (
                   <button
                     key={item.id}
@@ -387,8 +403,12 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
             <button
               type="button"
               onClick={() => {
-                setShowCreateForm(false)
-                setFormData(prev => ({ ...prev, name: '' }))
+                if (createOnly) {
+                  onToggleExpanded()
+                } else {
+                  setShowCreateForm(false)
+                  setFormData(prev => ({ ...prev, name: '' }))
+                }
               }}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -441,7 +461,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
             />
           </button>
 
-          {showCategoryDropdown && (
+              {showCategoryDropdown && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
               <div
                 className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
@@ -452,7 +472,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
               >
                 <span className="text-gray-500">Sem categoria</span>
               </div>
-              {mockCategories.map((category) => (
+                  {allCategories.map((category) => (
                 <div
                   key={category.id}
                   className="p-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 last:border-b-0 border-b border-gray-100"
@@ -509,20 +529,11 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded }: AddItem
         </div>
 
         {/* Campo de Quantidade */}
-        <div className="relative">
-          <input
-            type="number"
-            value={formData.qty}
-            onChange={(e) => setFormData(prev => ({ ...prev, qty: e.target.value }))}
-            min={formData.unit === 'peso' ? '0.001' : '1'}
-            step={formData.unit === 'peso' ? '0.001' : '1'}
-            className="w-full px-3 py-3 pr-16 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
-            placeholder={formData.unit === 'peso' ? '0.5' : '1'}
-          />
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
-            {formData.unit === 'peso' ? 'kg' : 'un'}
-          </div>
-        </div>
+        <QuantityStepper
+          value={formData.qty}
+          unit={formData.unit as 'unidade'|'peso'}
+          onChange={(v) => setFormData(prev => ({ ...prev, qty: v }))}
+        />
         
         {formData.unit === 'peso' && (
           <div className="text-xs text-gray-500 mt-1">

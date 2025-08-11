@@ -1,7 +1,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockApi } from '../../lib/mockData'
+// Mock de envio de OTP substituído por lógica local
 
 export function RequestOtp(){
   const [phone, setPhone] = useState('')
@@ -13,7 +13,7 @@ export function RequestOtp(){
   async function submit() {
     setLoading(true)
     try {
-      const res = await mockApi.requestOtp(normalize(phone))
+      // Simula envio de OTP e salva phone temporário
       sessionStorage.setItem('lz_request_id', 'mock-request-id')
       sessionStorage.setItem('lz_phone', normalize(phone))
       nav('/auth/codigo')

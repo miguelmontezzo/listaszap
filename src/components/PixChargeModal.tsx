@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, DollarSign, Phone, Mail, CreditCard, Hash, Shuffle, RotateCcw, X } from 'lucide-react'
+import { Copy, DollarSign, Phone, Mail, CreditCard, Hash, Shuffle, RotateCcw, X, CheckCircle2 } from 'lucide-react'
 import { Modal, useResponsiveModalSizing } from './Modal'
 
 interface PixChargeModalProps {
@@ -63,12 +63,14 @@ export function PixChargeModal({
   memberCount, 
   amountPerPerson, 
   listName,
-  members 
-}: PixChargeModalProps) {
+  members,
+  onCharged
+}: PixChargeModalProps & { onCharged?: () => void }) {
   const { padding } = useResponsiveModalSizing()
   const [selectedKeyType, setSelectedKeyType] = useState<PixKeyType>('cpf')
   const [pixKey, setPixKey] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [successOpen, setSuccessOpen] = useState(false)
 
   const selectedType = pixKeyTypes.find(type => type.id === selectedKeyType)
 
@@ -132,8 +134,9 @@ export function PixChargeModal({
         await new Promise(resolve => setTimeout(resolve, 500))
       }
       
-      alert(`Cobrança enviada para ${members.length} pessoas!`)
-      onClose()
+      try { onCharged && onCharged() } catch {}
+      setSuccessOpen(true)
+      setTimeout(() => { setSuccessOpen(false); onClose() }, 1500)
       
     } catch (error) {
       console.error('Erro ao enviar cobranças:', error)
@@ -149,6 +152,7 @@ export function PixChargeModal({
   }
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title="Cobrar Membros">
       <div className="flex flex-col" style={{ height: '100%' }}>
         <div className={`flex-1 overflow-y-auto min-h-0 ${padding === 'p-2' ? 'p-2' : 'p-3'} modal-scroll`}>
@@ -307,5 +311,14 @@ export function PixChargeModal({
         </div>
       </div>
     </Modal>
+    {/* Sucesso da cobrança */}
+    <Modal isOpen={successOpen} onClose={() => {}} title="Cobrança gerada" autoHeight>
+      <div className="p-6 flex flex-col items-center justify-center text-center space-y-3">
+        <CheckCircle2 className="text-green-600" size={56} />
+        <div className="text-lg font-semibold text-gray-900">Cobrança enviada!</div>
+        <div className="text-sm text-gray-600">Notificamos {members.length} {members.length === 1 ? 'pessoa' : 'pessoas'}.</div>
+      </div>
+    </Modal>
+    </>
   )
 }

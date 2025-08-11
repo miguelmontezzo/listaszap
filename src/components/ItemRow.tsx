@@ -23,7 +23,7 @@ export function ItemRow({ name, checked, qty, price, category, unit, onToggle }:
         {/* Custom Checkbox */}
         <div 
           className="relative cursor-pointer"
-          onClick={() => onToggle?.(!checked)}
+          onClick={(e) => { e.stopPropagation(); onToggle?.(!checked) }}
         >
           <div
             className={`w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center ${

@@ -1,6 +1,7 @@
 
 import { useState } from 'react'
 import { useSession } from '../../lib/session'
+import { storage } from '../../lib/storage'
 
 export function ProfilePage(){
   const { user, clear } = useSession()
@@ -38,6 +39,18 @@ export function ProfilePage(){
         <div className="text-sm text-neutral-600">
           💡 <strong>Modo desenvolvimento:</strong> Todos os dados são simulados para facilitar o desenvolvimento
         </div>
+        <button
+          className="btn btn-danger w-full"
+          onClick={() => {
+            if (confirm('Tem certeza que deseja limpar todos os dados locais? Esta ação não pode ser desfeita.')) {
+              storage.resetAll()
+              alert('Dados locais limpos. A página será recarregada.')
+              window.location.reload()
+            }
+          }}
+        >
+          🧹 Limpar dados (local)
+        </button>
       </div>
 
       <button className="btn btn-danger w-full" onClick={clear}>

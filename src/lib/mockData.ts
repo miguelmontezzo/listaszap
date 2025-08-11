@@ -70,6 +70,38 @@ export const mockLists = [
       { id: '10', itemId: '12', quantity: 1, checked: false, price: 8.90 },
       { id: '11', itemId: '13', quantity: 1, checked: true, price: 15.60 }
     ]
+  },
+  // Lista compartilhada do próprio usuário (gera "a receber")
+  {
+    id: '4',
+    name: 'Churrasco dos Amigos',
+    description: 'Lista compartilhada para churrasco',
+    createdAt: '2024-02-01T12:00:00Z',
+    userId: '1',
+    type: 'shared',
+    memberCount: 4,
+    memberNames: ['João Silva', 'Maria Santos', 'Pedro Costa', 'Ana Lima'],
+    items: [
+      { id: '12', itemId: '8', quantity: 2, checked: true, price: 32.00 },
+      { id: '13', itemId: '5', quantity: 3, checked: true, price: 5.00 },
+      { id: '14', itemId: '6', quantity: 2, checked: false, price: 4.00 }
+    ]
+  },
+  // Lista compartilhada de outro usuário (gera "a pagar" para João)
+  {
+    id: '5',
+    name: 'Compras do Escritório',
+    description: 'Itens de uso comum no escritório',
+    createdAt: '2024-02-03T09:00:00Z',
+    userId: '2',
+    type: 'shared',
+    memberCount: 3,
+    memberNames: ['João Silva', 'Carlos Souza', 'Beatriz Rocha'],
+    items: [
+      { id: '15', itemId: '11', quantity: 4, checked: true, price: 2.50 },
+      { id: '16', itemId: '12', quantity: 2, checked: true, price: 8.90 },
+      { id: '17', itemId: '9', quantity: 6, checked: false, price: 4.20 }
+    ]
   }
 ]
 

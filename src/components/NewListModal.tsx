@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Minus, Users, Split, X, Check } from 'lucide-react'
 import { Modal, useResponsiveModalSizing } from './Modal'
-import { mockItems, mockCategories } from '../lib/mockData'
+import { storage, type Item as StorageItem, type Category as StorageCategory } from '../lib/storage'
+import { QuickContactModal } from './QuickContactModal'
 
 interface NewListModalProps {
   isOpen: boolean
@@ -23,6 +24,24 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
   })
 
   const [showItemSelector, setShowItemSelector] = useState(false)
+  const [allItems, setAllItems] = useState<StorageItem[]>([])
+  const [allCategories, setAllCategories] = useState<StorageCategory[]>([])
+  const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([])
+  const [createContactOpen, setCreateContactOpen] = useState(false)
+  const [prefillName, setPrefillName] = useState('')
+  const [prefillPhone, setPrefillPhone] = useState('')
+  const [openSuggestIndex, setOpenSuggestIndex] = useState<number|null>(null)
+
+  // carregar dados do storage
+  useEffect(() => {
+    (async () => {
+      const [items, cats] = await Promise.all([storage.getItems(), storage.getCategories()])
+      const cons = await storage.getContacts()
+      setAllItems(items)
+      setAllCategories(cats)
+      setContacts(cons)
+    })()
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,6 +99,22 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
     const newNames = [...formData.memberNames]
     newNames[index] = name
     setFormData(prev => ({ ...prev, memberNames: newNames }))
+    setOpenSuggestIndex(name.trim() ? index : null)
+  }
+
+  function suggestionsFor(index: number) {
+    const q = (formData.memberNames[index] || '').trim().toLowerCase()
+    if (!q) return [] as { id: string; name: string; phone: string }[]
+    return contacts.filter(c => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)).slice(0,5)
+  }
+
+  function openCreateContactFor(index: number) {
+    const value = formData.memberNames[index] || ''
+    const onlyDigits = value.replace(/\D/g,'')
+    const isPhone = onlyDigits.length >= 8
+    setPrefillName(isPhone ? '' : value)
+    setPrefillPhone(isPhone ? value : '')
+    setCreateContactOpen(true)
   }
 
   const toggleItem = (itemId: string) => {
@@ -91,216 +126,138 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
     }))
   }
 
-  const groupedItems = mockItems.reduce((acc, item) => {
-    const category = mockCategories.find(cat => cat.id === item.categoryId)
+  const groupedItems = allItems.reduce((acc, item) => {
+    const category = allCategories.find(cat => cat.id === item.categoryId)
     const categoryName = category?.name || 'Sem categoria'
     
     if (!acc[categoryName]) acc[categoryName] = []
     acc[categoryName].push(item)
     return acc
-  }, {} as Record<string, typeof mockItems>)
+  }, {} as Record<string, StorageItem[]>)
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={handleClose} title="Nova Lista">
       <div className="flex flex-col" style={{ height: '100%' }}>
         <div className={`flex-1 ${padding === 'p-2' ? 'p-2' : 'p-3'} modal-scroll`} style={{ minHeight: 0 }}>
           <form id="new-list-form" onSubmit={handleSubmit} className={`${padding === 'p-2' ? 'space-y-2' : 'space-y-3'}`}>
-        {/* Nome da Lista */}
-        <div>
-          <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>
-            Nome da Lista *
-          </label>
-          <input
-            type="text"
-            className="input"
-            placeholder="Ex: Compras da Semana"
-            value={formData.name}
-            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-            required
-          />
-        </div>
+            {/* Card: Nome e Descrição */}
+            <div className="card space-y-2">
+              <div>
+                <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>Nome da Lista *</label>
+                <input type="text" className="input" placeholder="Ex: Compras da Semana" value={formData.name} onChange={(e)=>setFormData(prev=>({...prev,name:e.target.value}))} required />
+              </div>
+              <div>
+                <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>Descrição (opcional)</label>
+                <input type="text" className="input" placeholder="Ex: Lista principal para compras do supermercado" value={formData.description} onChange={(e)=>setFormData(prev=>({...prev,description:e.target.value}))} />
+              </div>
+            </div>
 
-        {/* Descrição */}
-        <div>
-          <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-1.5'}`}>
-            Descrição (opcional)
-          </label>
-          <input
-            type="text"
-            className="input"
-            placeholder="Ex: Lista principal para compras do supermercado"
-            value={formData.description}
-            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-          />
-        </div>
-
-        {/* Tipo de Lista */}
-        <div>
-          <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-2'}`}>
-            Tipo de Lista
-          </label>
-          <div className={`grid grid-cols-2 ${padding === 'p-2' ? 'gap-1.5' : 'gap-2'}`}>
-            <button
-              type="button"
-              className={`${padding === 'p-2' ? 'p-2' : 'p-2.5'} rounded-lg border-2 transition-all duration-200 ${
-                formData.type === 'personal'
-                  ? 'border-green-500 bg-green-50 text-green-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setFormData(prev => ({ 
-                ...prev, 
-                type: 'personal'
-              }))}
-            >
-              <Users size={padding === 'p-2' ? 16 : 18} className="mx-auto mb-1" />
-              <div className={`font-medium ${padding === 'p-2' ? 'text-xs' : 'text-sm'}`}>Pessoal</div>
-              <div className={`text-gray-500 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Só para mim</div>
-            </button>
-            
-            <button
-              type="button"
-              className={`${padding === 'p-2' ? 'p-2' : 'p-2.5'} rounded-lg border-2 transition-all duration-200 ${
-                formData.type === 'shared'
-                  ? 'border-green-500 bg-green-50 text-green-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setFormData(prev => ({ 
-                ...prev, 
-                type: 'shared'
-              }))}
-            >
-              <Split size={padding === 'p-2' ? 16 : 18} className="mx-auto mb-1" />
-              <div className={`font-medium ${padding === 'p-2' ? 'text-xs' : 'text-sm'}`}>Compartilhada</div>
-              <div className={`text-gray-500 ${padding === 'p-2' ? 'text-xs' : 'text-xs'}`}>Com outras pessoas</div>
-            </button>
-          </div>
-        </div>
-
-        {/* Configurações para Lista Compartilhada */}
-        {formData.type === 'shared' && (
-          <div className="space-y-3">
-            {/* Número de Pessoas */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Número de Pessoas
-              </label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-colors hover:bg-gray-200 active:scale-95"
-                  onClick={() => updateMemberCount(formData.memberCount - 1)}
-                  disabled={formData.memberCount <= 2}
-                >
-                  <Minus size={16} />
+            {/* Card: Tipo de Lista */}
+            <div className="card">
+              <label className={`block font-medium text-gray-700 ${padding === 'p-2' ? 'text-xs mb-1' : 'text-sm mb-2'}`}>Tipo de Lista</label>
+              <div className={`grid grid-cols-2 ${padding === 'p-2' ? 'gap-1.5' : 'gap-2'}`}>
+                <button type="button" className={`${padding === 'p-2' ? 'p-2' : 'p-2.5'} rounded-lg border-2 transition-all duration-200 ${formData.type==='personal'?'border-green-500 bg-green-50 text-green-700':'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`} onClick={()=>setFormData(prev=>({...prev,type:'personal'}))}>
+                  <Users size={padding==='p-2'?16:18} className="mx-auto mb-1" />
+                  <div className={`font-medium ${padding==='p-2'?'text-xs':'text-sm'}`}>Pessoal</div>
+                  <div className={`text-gray-500 ${padding==='p-2'?'text-xs':'text-xs'}`}>Só para mim</div>
                 </button>
-                
-                <span className="w-12 text-center font-semibold text-lg">
-                  {formData.memberCount}
-                </span>
-                
-                <button
-                  type="button"
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-colors hover:bg-gray-200 active:scale-95"
-                  onClick={() => updateMemberCount(formData.memberCount + 1)}
-                  disabled={formData.memberCount >= 8}
-                >
-                  <Plus size={16} />
+                <button type="button" className={`${padding === 'p-2' ? 'p-2' : 'p-2.5'} rounded-lg border-2 transition-all duration-200 ${formData.type==='shared'?'border-green-500 bg-green-50 text-green-700':'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`} onClick={()=>setFormData(prev=>({...prev,type:'shared'}))}>
+                  <Split size={padding==='p-2'?16:18} className="mx-auto mb-1" />
+                  <div className={`font-medium ${padding==='p-2'?'text-xs':'text-sm'}`}>Compartilhada</div>
+                  <div className={`text-gray-500 ${padding==='p-2'?'text-xs':'text-xs'}`}>Com outras pessoas</div>
                 </button>
               </div>
             </div>
 
-            {/* Nomes dos Membros */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nomes dos Membros (opcional)
-              </label>
-              <div className="space-y-2">
-                {formData.memberNames.map((name, index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    className="input"
-                    placeholder={`Pessoa ${index + 1}`}
-                    value={name}
-                    onChange={(e) => updateMemberName(index, e.target.value)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Adicionar Itens Iniciais */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-sm font-medium text-gray-700">
-              Itens Iniciais (opcional)
-            </label>
-            <button
-              type="button"
-              className="text-sm text-green-600 hover:text-green-700 font-medium"
-              onClick={() => setShowItemSelector(!showItemSelector)}
-            >
-              {showItemSelector ? 'Fechar' : 'Adicionar Itens'}
-            </button>
-          </div>
-          
-          {formData.initialItems.length > 0 && (
-            <div className="mb-3">
-              <div className="text-xs text-gray-500 mb-2">
-                {formData.initialItems.length} item(s) selecionado(s)
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {formData.initialItems.map(itemId => {
-                  const item = mockItems.find(i => i.id === itemId)
-                  return (
-                    <span
-                      key={itemId}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                    >
-                      {item?.name}
-                      <button
-                        type="button"
-                        onClick={() => toggleItem(itemId)}
-                        className="hover:bg-green-200 rounded-full p-0.5"
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {showItemSelector && (
-            <div className="border border-gray-200 rounded-2xl p-4 max-h-60 overflow-y-auto">
-              {Object.entries(groupedItems).map(([categoryName, items]) => (
-                <div key={categoryName} className="mb-4 last:mb-0">
-                  <div className="font-medium text-sm text-gray-700 mb-2">
-                    {categoryName}
-                  </div>
-                  <div className="space-y-1">
-                    {items.map(item => (
-                      <label
-                        key={item.id}
-                        className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
-                          checked={formData.initialItems.includes(item.id)}
-                          onChange={() => toggleItem(item.id)}
-                        />
-                        <span className="text-sm text-gray-700">{item.name}</span>
-                      </label>
-                    ))}
+            {/* Card: Configurações da Compartilhada */}
+            {formData.type==='shared' && (
+              <div className="card space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Número de Pessoas</label>
+                  <div className="flex items-center gap-3">
+                    <button type="button" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95" onClick={()=>updateMemberCount(formData.memberCount-1)} disabled={formData.memberCount<=2}><Minus size={14}/></button>
+                    <span className="w-12 text-center font-semibold text-lg">{formData.memberCount}</span>
+                    <button type="button" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95" onClick={()=>updateMemberCount(formData.memberCount+1)} disabled={formData.memberCount>=8}><Plus size={14}/></button>
                   </div>
                 </div>
-              ))}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nomes dos Membros (opcional)</label>
+                  <div className="space-y-2">
+                    {formData.memberNames.map((name, index)=>{
+                      const sugg = suggestionsFor(index)
+                      return (
+                        <div key={index} className="relative">
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder={`Pessoa ${index+1}`}
+                            value={name}
+                            onChange={(e)=>updateMemberName(index, e.target.value)}
+                            onFocus={()=> setOpenSuggestIndex(index)}
+                          />
+                          {openSuggestIndex===index && sugg.length>0 && (
+                            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow">
+                              {sugg.map(s => (
+                                <button key={s.id} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between" onClick={()=>{
+                                  const newNames = [...formData.memberNames]; newNames[index]=s.name; setFormData(prev=>({...prev, memberNames:newNames}))
+                                  setOpenSuggestIndex(null)
+                                }}>
+                                  <span className="text-sm text-gray-800">{s.name}</span>
+                                  <span className="text-xs text-gray-500">{s.phone}</span>
+                                </button>
+                              ))}
+                              <button type="button" className="w-full text-left px-3 py-2 text-xs text-green-700 hover:bg-green-50" onClick={()=>{ openCreateContactFor(index); setOpenSuggestIndex(null) }}>+ Criar novo contato</button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Card: Itens Iniciais */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-gray-700">Itens Iniciais (opcional)</label>
+                <button type="button" className="text-sm text-green-600 hover:text-green-700 font-medium" onClick={()=>setShowItemSelector(!showItemSelector)}>{showItemSelector?'Fechar':'Adicionar Itens'}</button>
+              </div>
+              {formData.initialItems.length>0 && (
+                <div className="mb-3">
+                  <div className="text-xs text-gray-500 mb-2">{formData.initialItems.length} item(s) selecionado(s)</div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.initialItems.map(itemId=>{
+                      const item = allItems.find(i=>i.id===itemId)
+                      return (
+                        <span key={itemId} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          {item?.name}
+                          <button type="button" onClick={()=>toggleItem(itemId)} className="hover:bg-green-200 rounded-full p-0.5"><X size={12}/></button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {showItemSelector && (
+                <div className="border border-gray-200 rounded-2xl p-4 max-h-60 overflow-y-auto">
+                  {Object.entries(groupedItems).map(([categoryName, items])=> (
+                    <div key={categoryName} className="mb-4 last:mb-0">
+                      <div className="font-medium text-sm text-gray-700 mb-2">{categoryName}</div>
+                      <div className="space-y-1">
+                        {items.map(item => (
+                          <label key={item.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" className="w-4 h-4 text-green-600 rounded focus:ring-green-500" checked={formData.initialItems.includes(item.id)} onChange={()=>toggleItem(item.id)} />
+                            <span className="text-sm text-gray-700">{item.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
           </form>
         </div>
         
@@ -328,5 +285,22 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
         </div>
       </div>
     </Modal>
+    <QuickContactModal
+      isOpen={createContactOpen}
+      onClose={()=>setCreateContactOpen(false)}
+      initialName={prefillName}
+      initialPhone={prefillPhone}
+      onSave={async ({ name, phone }) => {
+        await storage.createContact({ name, phone })
+        setContacts(await storage.getContacts())
+        // Preenche no primeiro campo vazio
+        const idx = formData.memberNames.findIndex(n => !n.trim())
+        const target = idx === -1 ? 0 : idx
+        const newNames = [...formData.memberNames]
+        newNames[target] = name
+        setFormData(prev => ({ ...prev, memberNames: newNames }))
+      }}
+    />
+    </>
   )
 }

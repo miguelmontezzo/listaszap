@@ -1,7 +1,6 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { mockApi } from '../../lib/mockData'
 import { useSession } from '../../lib/session'
 
 export function VerifyOtp(){
@@ -14,8 +13,9 @@ export function VerifyOtp(){
     const phone = sessionStorage.getItem('lz_phone')||''
     setLoading(true)
     try {
-      const res = await mockApi.verifyOtp(phone, code)
-      setSession({ token: res.token, user: res.user })
+      // Qualquer código com 4+ dígitos é aceito em dev; cria usuário simples
+      const user = { id: '1', phone, name: 'João Silva' }
+      setSession({ token: 'local-token', user })
       nav('/listas')
     } catch (e:any) {
       alert(e.message||'Erro')

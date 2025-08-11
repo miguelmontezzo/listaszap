@@ -1,6 +1,8 @@
 
 import { Outlet, NavLink } from 'react-router-dom'
-import { ListChecks, PackageOpen, FolderTree, UserRound } from 'lucide-react'
+import { ListChecks, PackageOpen, FolderTree, UserRound, Users } from 'lucide-react'
+import { DollarSign } from 'lucide-react'
+import { ToastContainer } from '../components/Toast'
 
 export function Layout() {
 
@@ -24,6 +26,7 @@ export function Layout() {
       </div>
       <div className="page">
         <Outlet />
+        <ToastContainer />
       </div>
 
       <nav className="tabbar">
@@ -60,7 +63,8 @@ export function Layout() {
               </div>
             )}
           </NavLink>
-          <NavLink to="/categorias">
+          
+          <NavLink to="/contas">
             {({isActive}) => (
               <div className="tabbtn">
                 <div className={`icon-container ${
@@ -68,10 +72,26 @@ export function Layout() {
                     ? 'bg-green-600 text-white shadow-lg shadow-green-600/25' 
                     : 'text-gray-500'
                 }`}>
-                  <FolderTree size={20} strokeWidth={2} />
+                  <DollarSign size={20} strokeWidth={2} />
                 </div>
                 <span className={`label ${isActive ? 'text-green-600' : 'text-gray-500'}`}>
-                  Categorias
+                  Contas
+                </span>
+              </div>
+            )}
+          </NavLink>
+          <NavLink to="/contatos">
+            {({isActive}) => (
+              <div className="tabbtn">
+                <div className={`icon-container ${
+                  isActive 
+                    ? 'bg-green-600 text-white shadow-lg shadow-green-600/25' 
+                    : 'text-gray-500'
+                }`}>
+                  <Users size={20} strokeWidth={2} />
+                </div>
+                <span className={`label ${isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                  Contatos
                 </span>
               </div>
             )}

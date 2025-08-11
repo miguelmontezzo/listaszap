@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Plus, X, Search } from 'lucide-react'
+import { storage } from '../lib/storage'
+import { QuickContactModal } from './QuickContactModal'
 
 interface Member {
   id: string
@@ -14,12 +16,29 @@ interface AddMemberProps {
 
 export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberProps) {
   const [newMemberName, setNewMemberName] = useState('')
+  const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([])
+  const [showCreate, setShowCreate] = useState(false)
 
-  const handleAddMember = () => {
-    if (newMemberName.trim()) {
-      onAddMember(newMemberName.trim())
+  useEffect(()=>{ storage.getContacts().then(setContacts) }, [])
+
+  const suggestions = useMemo(()=>{
+    const q = newMemberName.trim().toLowerCase()
+    if (!q) return [] as { id: string; name: string; phone: string }[]
+    return contacts.filter(c => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)).slice(0,5)
+  }, [newMemberName, contacts])
+
+  const handleAddMember = async () => {
+    const v = newMemberName.trim()
+    if (!v) return
+    // se casar com contato, usa o nome do contato
+    const match = contacts.find(c => c.name.toLowerCase() === v.toLowerCase() || c.phone.replace(/\D/g,'') === v.replace(/\D/g,''))
+    if (match) {
+      onAddMember(match.name)
       setNewMemberName('')
+      return
     }
+    // se não houver contato, abrir modal para completar nome/telefone
+    setShowCreate(true)
   }
 
   const getInitials = (name: string) => {
@@ -45,6 +64,7 @@ export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberPro
   }
 
   return (
+    <>
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-gray-900">Membros ({members.length})</h3>
@@ -64,6 +84,17 @@ export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberPro
             placeholder="Nome ou contato"
             className="w-full pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50 focus:bg-white transition-colors"
           />
+          {suggestions.length>0 && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow">
+              {suggestions.map(s => (
+                <button key={s.id} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between" onClick={()=>{ onAddMember(s.name); setNewMemberName('') }}>
+                  <span className="text-sm text-gray-800">{s.name}</span>
+                  <span className="text-xs text-gray-500">{s.phone}</span>
+                </button>
+              ))}
+              <button type="button" className="w-full text-left px-3 py-2 text-xs text-green-700 hover:bg-green-50" onClick={()=>setShowCreate(true)}>+ Criar novo contato</button>
+            </div>
+          )}
           {newMemberName.trim() && (
             <button
               onClick={handleAddMember}
@@ -131,5 +162,19 @@ export function AddMember({ members, onAddMember, onRemoveMember }: AddMemberPro
         </div>
       )}
     </div>
+
+    <QuickContactModal
+      isOpen={showCreate}
+      onClose={()=>setShowCreate(false)}
+      initialName={/\D/.test(newMemberName) ? newMemberName : ''}
+      initialPhone={!/\D/.test(newMemberName) ? newMemberName : ''}
+      onSave={async ({ name, phone }) => {
+        await storage.createContact({ name, phone })
+        setContacts(await storage.getContacts())
+        onAddMember(name)
+        setNewMemberName('')
+      }}
+    />
+    </>
   )
 }

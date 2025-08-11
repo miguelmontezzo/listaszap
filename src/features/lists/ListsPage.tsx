@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { ListChecks } from 'lucide-react'
 import { ListCard } from '../../components/ListCard'
 import { NewListModal } from '../../components/NewListModal'
-import { mockApi } from '../../lib/mockData'
+import { storage } from '../../lib/storage'
+import { useSession } from '../../lib/session'
 
 type L = { id: string; name: string; progress: number; total: number; real: number }
 
@@ -13,6 +14,7 @@ export function ListsPage(){
   const [loading, setLoading] = useState(true)
   const [showNewListModal, setShowNewListModal] = useState(false)
   const nav = useNavigate()
+  const { user } = useSession()
 
   useEffect(()=>{
     loadLists()
@@ -20,7 +22,7 @@ export function ListsPage(){
 
   async function loadLists() {
     try {
-      const data = await mockApi.getLists()
+      const data = await storage.getLists()
       // Calcular estatísticas das listas
       const listsWithStats = data.map(list => {
         const checkedItems = list.items.filter(item => item.checked).length
@@ -49,7 +51,7 @@ export function ListsPage(){
 
   async function handleCreateList(listData: any) {
     try {
-      await mockApi.createList(listData)
+      await storage.createList({ ...listData, userId: user!.id })
       await loadLists() // Recarregar listas
       setShowNewListModal(false)
     } catch (error) {

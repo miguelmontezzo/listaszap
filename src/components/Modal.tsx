@@ -6,6 +6,7 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: React.ReactNode
+  autoHeight?: boolean
 }
 
 export function useResponsiveModalSizing() {
@@ -94,7 +95,7 @@ export function useResponsiveModalSizing() {
   return dimensions
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, autoHeight = false }: ModalProps) {
   const { height, maxHeight, minHeight, padding, borderRadius, topSpacing } = useResponsiveModalSizing()
   
   if (!isOpen) return null
@@ -110,8 +111,8 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       {/* Modal */}
       <div className={`flex min-h-full items-start justify-center ${padding} ${topSpacing}`}>
         <div 
-          className={`relative w-full max-w-sm sm:max-w-md bg-white ${borderRadius} shadow-xl transform transition-all flex flex-col`} 
-          style={{ height, maxHeight, minHeight }}
+          className={`relative w-full max-w-sm sm:max-w-md bg-white ${borderRadius} shadow-xl transform transition-all ${autoHeight ? '' : 'flex flex-col'}`} 
+          style={autoHeight ? { maxHeight } : { height, maxHeight, minHeight }}
         >
           {/* Header */}
           <div className={`flex items-center justify-between ${padding === 'p-2' ? 'p-2' : 'p-3'} border-b border-gray-100 flex-shrink-0`}>
@@ -125,7 +126,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           </div>
           
           {/* Content */}
-          <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
+          <div className={`${autoHeight ? '' : 'flex-1 overflow-y-auto'}`} style={autoHeight ? undefined : { minHeight: 0 }}>
             {children}
           </div>
         </div>

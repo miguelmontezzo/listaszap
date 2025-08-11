@@ -1,31 +1,36 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Users, Split, DollarSign } from 'lucide-react'
+import { Users, Split, DollarSign, Settings } from 'lucide-react'
 import { ItemRow } from '../../components/ItemRow'
+import { EditListItemModal } from '../../components/EditListItemModal'
 import { SearchInput } from '../../components/SearchInput'
 import { AddMember } from '../../components/AddMember'
 import { AddItemForm } from '../../components/AddItemForm'
 import { PixChargeModal } from '../../components/PixChargeModal'
-import { mockApi, mockItems, mockCategories, mockUser } from '../../lib/mockData'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { EditListSettingsModal } from '../../components/EditListSettingsModal'
+import { storage, type Item as StorageItem, type Category as StorageCategory, type ShoppingList } from '../../lib/storage'
+import { useSession } from '../../lib/session'
 
 type Item = { id: string; name: string; checked: boolean; qty?: number; price?: number; category?: string; unit?: string }
 type Member = { id: string; name: string }
 
 export function ListDetailPage(){
   const { id } = useParams()
+  const { user } = useSession()
   const [items, setItems] = useState<Item[]>([])
-  const [listData, setListData] = useState<any>(null)
+  const [listData, setListData] = useState<ShoppingList | null>(null)
   const [q, setQ] = useState('')
-  const [split, setSplit] = useState(true)
-  const [members, setMembers] = useState<Member[]>([
-    { id: '1', name: 'João Silva' },
-    { id: '2', name: 'Maria Santos' },
-    { id: '3', name: 'Pedro Costa' }
-  ])
+  const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showPixModal, setShowPixModal] = useState(false)
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<{ open: boolean; id?: string }>({ open: false })
+  const [editingListItem, setEditingListItem] = useState<any>(null)
+  const [confirmDeleteList, setConfirmDeleteList] = useState(false)
+  const [showEditList, setShowEditList] = useState(false)
+  // removed explicit delete list button per request
 
   useEffect(()=>{
     if (id) {
@@ -35,20 +40,29 @@ export function ListDetailPage(){
 
   async function loadListDetail() {
     try {
-      const list = await mockApi.getList(id!)
+      const [list, allItems, categories] = await Promise.all([
+        storage.getList(id!),
+        storage.getItems(),
+        storage.getCategories()
+      ])
       setListData(list)
-      
-      // Mapear itens da lista com informações do item
+      // splitEnabled tratado via listData
+      // hidratar membros a partir da lista persistida
+      if (Array.isArray(list.memberNames)) {
+        setMembers(list.memberNames.map((name, idx) => ({ id: `${idx}`, name })))
+      }
+      const catById = new Map(categories.map(c => [c.id, c.name]))
+      const itemById = new Map(allItems.map(i => [i.id, i]))
       const listItems = list.items.map((listItem: any) => {
-        const itemInfo = mockItems.find(item => item.id === listItem.itemId)
-        const categoryInfo = mockCategories.find(cat => cat.id === itemInfo?.categoryId)
+        const itemInfo = itemById.get(listItem.itemId)
         return {
           id: listItem.id,
           name: itemInfo?.name || 'Item não encontrado',
           checked: listItem.checked,
           qty: listItem.quantity,
           price: listItem.price,
-          category: categoryInfo?.name
+          unit: listItem.unit || (itemInfo?.defaultUnit as any) || 'unidade',
+          category: itemInfo ? catById.get(itemInfo.categoryId) : undefined
         }
       })
       setItems(listItems)
@@ -59,41 +73,60 @@ export function ListDetailPage(){
     }
   }
 
+  // Observação: status de cobrança/pagamento fica apenas na tela de Contas
+
   const totals = useMemo(()=>{
     const total = items.reduce((s,i)=> s + ((i.price||0) * (i.qty||1)), 0)
     const real = items.filter(i=>i.checked).reduce((s,i)=> s + ((i.price||0) * (i.qty||1)), 0)
     const progress = items.length ? Math.round(100 * items.filter(i=>i.checked).length / items.length) : 0
-    const porPessoa = split && members.length > 0 ? real / members.length : undefined
-    return { total, real, progress, porPessoa }
-  },[items, split, members])
+    const splitEnabledNow = listData?.type === 'shared' && !!listData?.splitEnabled
+    const participantCount = splitEnabledNow ? (members.length + (listData?.includeOwnerInSplit ? 1 : 0)) : 0
+    const porPessoa = splitEnabledNow && participantCount > 0 ? real / participantCount : undefined
+    return { total, real, progress, porPessoa, participants: participantCount }
+  },[items, listData?.splitEnabled, listData?.includeOwnerInSplit, members])
 
-  function toggle(id:string, v:boolean){
-    setItems(prev => prev.map(i => i.id===id? {...i, checked: v}: i))
+  async function toggle(listItemId:string, v:boolean){
+    try {
+      await storage.toggleListItem(id!, listItemId, v)
+      await loadListDetail()
+    } catch (e) {
+      console.error('Erro ao atualizar item da lista:', e)
+    }
   }
 
-  function handleAddMember(name: string) {
-    const newMember: Member = {
-      id: Date.now().toString(),
-      name
-    }
+  async function handleAddMember(nameOrPhone: string) {
+    const newMember: Member = { id: Date.now().toString(), name: nameOrPhone }
     setMembers(prev => [...prev, newMember])
-  }
-
-  function handleRemoveMember(id: string) {
-    setMembers(prev => prev.filter(m => m.id !== id))
-  }
-
-  function handleAddItem(itemData: { name: string; price?: number; category?: string; qty?: number; unit?: string }) {
-    const newItem: Item = {
-      id: Date.now().toString(),
-      name: itemData.name,
-      checked: false,
-      qty: itemData.qty || 1,
-      price: itemData.price,
-      category: itemData.category ? mockCategories.find(c => c.id === itemData.category)?.name : undefined,
-      unit: itemData.unit || 'unidade'
+    if (listData) {
+      const names = [...(listData.memberNames||[]), nameOrPhone]
+      const updated = await storage.updateList(listData.id, { memberNames: names, memberCount: names.length, type: 'shared' })
+      setListData(updated)
     }
-    setItems(prev => [...prev, newItem])
+  }
+
+  async function handleRemoveMember(id: string) {
+    const next = members.filter(m => m.id !== id)
+    setMembers(next)
+    if (listData) {
+      const names = next.map(m => m.name)
+      const updated = await storage.updateList(listData.id, { memberNames: names, memberCount: names.length })
+      setListData(updated)
+    }
+  }
+
+  async function handleAddItem(itemData: { itemId?: string; name: string; categoryId?: string; price?: number; qty?: number; unit?: string }) {
+    try {
+      let itemId = itemData.itemId
+      if (!itemId) {
+        // criar item novo
+        const created = await storage.createItem({ name: itemData.name, categoryId: itemData.categoryId || '' })
+        itemId = created.id
+      }
+      await storage.addItemToList(id!, { itemId, quantity: itemData.qty, price: itemData.price, unit: (itemData.unit as any) })
+      await loadListDetail()
+    } catch (e) {
+      console.error('Erro ao adicionar item à lista:', e)
+    }
   }
 
   const filteredItems = items.filter(item => 
@@ -101,10 +134,10 @@ export function ListDetailPage(){
   )
 
   // Verificar se o usuário atual é o dono da lista
-  const isOwner = listData?.userId === mockUser.id
+  const isOwner = listData?.userId === user?.id
 
-  // Verificar se pode cobrar (lista compartilhada com gastos e itens marcados)
-  const canCharge = isOwner && split && items.some(i => i.checked) && totals.real > 0
+  // Verificar se pode cobrar (divisão ativa, gastos e itens marcados)
+  const canCharge = isOwner && listData?.type === 'shared' && !!listData?.splitEnabled && items.some(i => i.checked) && totals.real > 0
 
   if (loading) {
     return (
@@ -128,86 +161,34 @@ export function ListDetailPage(){
 
   return (
     <div className="pt-4 space-y-4">
-      {/* Header da Lista */}
-      <div className="card space-y-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">{listData.name}</h1>
-            {listData.description && (
-              <p className="text-sm text-gray-600 mt-1">{listData.description}</p>
-            )}
+      {/* Header compacto focado no progresso */}
+      <div className="card space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">{listData.name}</h1>
+            {listData.description && <p className="text-xs text-gray-500">{listData.description}</p>}
           </div>
+          <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200" onClick={()=>setShowEditList(true)}>
+            <Settings size={18} className="text-gray-700" />
+          </button>
         </div>
-
-        {/* Tipo de Lista - Pessoal/Compartilhada */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo de Lista
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              className={`p-3 rounded-xl border-2 transition-all duration-200 ${
-                !split
-                  ? 'border-green-500 bg-green-50 text-green-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setSplit(false)}
-            >
-              <Users size={20} className="mx-auto mb-1" />
-              <div className="font-medium text-sm">Pessoal</div>
-              <div className="text-xs text-gray-500">Só para mim</div>
-            </button>
-            
-            <button
-              type="button"
-              className={`p-3 rounded-xl border-2 transition-all duration-200 ${
-                split
-                  ? 'border-green-500 bg-green-50 text-green-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => setSplit(true)}
-            >
-              <Split size={20} className="mx-auto mb-1" />
-              <div className="font-medium text-sm">Compartilhada</div>
-              <div className="text-xs text-gray-500">Com outras pessoas</div>
-            </button>
-          </div>
-        </div>
-
-        {/* Barra de Progresso Visual */}
-        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Progresso da Lista</span>
+            <span className="text-sm font-medium text-gray-700">Progresso</span>
             <span className="text-sm font-semibold text-green-600">{totals.progress}%</span>
           </div>
           <div className="progress-bar">
-            <div 
-              className="progress-fill transition-all duration-500 ease-out"
-              style={{ width: `${totals.progress}%` }}
-            />
+            <div className="progress-fill transition-all duration-500 ease-out" style={{ width: `${totals.progress}%` }} />
           </div>
           <div className="flex justify-between text-xs text-gray-500">
             <span>{items.filter(i => i.checked).length} de {items.length} itens</span>
             <span>R$ {totals.real.toFixed(2)} de R$ {totals.total.toFixed(2)}</span>
           </div>
         </div>
-
-        {/* Resumo Financeiro */}
-        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-          <div className="text-center">
-            <div className="text-lg font-bold text-gray-900">R$ {totals.total.toFixed(2)}</div>
-            <div className="text-xs text-gray-500">Estimado</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-green-600">R$ {totals.real.toFixed(2)}</div>
-            <div className="text-xs text-gray-500">Gasto Real</div>
-          </div>
-        </div>
       </div>
 
-      {/* Seção de Membros - só aparece se split estiver ativo */}
-      {split && (
+      {/* Seção de Membros - aparece somente para listas compartilhadas */}
+      {listData.type === 'shared' && (
         <div className="card">
           <AddMember
             members={members}
@@ -242,16 +223,17 @@ export function ListDetailPage(){
       ) : (
         <div className="card">
           {filteredItems.map(i => (
-            <ItemRow 
-              key={i.id} 
-              name={i.name} 
-              checked={i.checked} 
-              qty={i.qty} 
-              price={i.price}
-              category={i.category}
-              unit={i.unit}
-              onToggle={(v)=>toggle(i.id, v)} 
-            />
+            <button key={i.id} className="w-full text-left" onClick={()=>setEditingListItem(i)}>
+              <ItemRow 
+                name={i.name} 
+                checked={i.checked} 
+                qty={i.qty} 
+                price={i.price}
+                category={i.category}
+                unit={i.unit}
+                onToggle={(v)=>toggle(i.id, v)} 
+              />
+            </button>
           ))}
           {filteredItems.length === 0 && q && (
             <div className="text-center py-8 text-gray-500">
@@ -261,7 +243,9 @@ export function ListDetailPage(){
         </div>
       )}
 
-      {/* Card de Valor Total - Fixo entre itens e botão de cobrar */}
+      {/* Toggle de dividir custos foi movido para o modal de configurações */}
+
+      {/* Card de Valor Total - Fixo entre itens e ações abaixo (como antes) */}
       <div className="card border border-green-100 sticky bottom-0 bg-white z-10" style={{ 
         padding: '20px',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)'
@@ -270,10 +254,10 @@ export function ListDetailPage(){
           <div className="text-sm text-gray-600">Total Gasto</div>
           <div className="font-bold text-xl text-green-600">R$ {totals.real.toFixed(2)}</div>
         </div>
-        {split && totals.porPessoa !== undefined && (
+        {!!listData?.splitEnabled && totals.porPessoa !== undefined && (
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
             <div className="text-sm text-gray-600">
-              Por pessoa ({members.length} {members.length === 1 ? 'pessoa' : 'pessoas'})
+              Por pessoa ({totals.participants} {totals.participants === 1 ? 'pessoa' : 'pessoas'})
             </div>
             <div className="font-semibold text-lg text-gray-900">R$ {totals.porPessoa.toFixed(2)}</div>
           </div>
@@ -287,32 +271,81 @@ export function ListDetailPage(){
         )}
       </div>
 
-      {/* Botão de Cobrar (só aparece para o dono da lista) */}
-      {canCharge && (
-        <div className="px-4 pb-4">
+      {/* Ações: Cobrar + Excluir lado a lado */}
+      <div className="px-4 pb-4">
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setShowPixModal(true)}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center gap-3 active:scale-95"
+            disabled={!canCharge}
+            className={`w-full py-3 px-4 rounded-xl shadow transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 ${canCharge ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
           >
-            <DollarSign size={24} />
+            <DollarSign size={20} />
             <div className="text-center">
-              <div className="text-lg">Cobrar Membros</div>
-              <div className="text-sm opacity-90">R$ {totals.porPessoa?.toFixed(2)} por pessoa</div>
+              <div className="text-sm font-semibold">Cobrar</div>
+              {canCharge && listData?.splitEnabled && <div className="text-xs opacity-90">R$ {totals.porPessoa?.toFixed(2)}/pessoa</div>}
             </div>
           </button>
+          <button className="btn-danger w-full py-3 rounded-xl" onClick={()=>setConfirmDeleteList(true)}>Excluir Lista</button>
         </div>
-      )}
+      </div>
+
+      {/* Status de cobrança/pagamento foi movido para a tela de Contas */}
+
+      {/* Ações: excluir lista removida conforme solicitado */}
 
       {/* Modal PIX */}
       <PixChargeModal
         isOpen={showPixModal}
         onClose={() => setShowPixModal(false)}
         totalAmount={totals.real}
-        memberCount={members.length}
+        memberCount={totals.participants || members.length}
         amountPerPerson={totals.porPessoa || 0}
         listName={listData?.name || 'Lista de Compras'}
         members={members}
+        onCharged={async ()=>{
+          if (!listData) return
+          const byMember = (listData.memberNames||members.map(m=>m.name)).map(name => ({ name, status: 'cobrado' as const }))
+          const updated = await storage.updateList(listData.id, { charges: { byMember } })
+          setListData(updated)
+        }}
       />
+
+      {/* Confirm dialogs */}
+      <ConfirmDialog
+        isOpen={confirmDeleteItem.open}
+        title="Excluir item"
+        description="Tem certeza que deseja excluir este item da lista?"
+        confirmLabel="Excluir"
+        onCancel={()=>setConfirmDeleteItem({ open: false })}
+        onConfirm={async ()=>{
+          if (confirmDeleteItem.id) {
+            await storage.deleteListItem(id!, confirmDeleteItem.id)
+            await loadListDetail()
+          }
+          setConfirmDeleteItem({ open: false })
+        }}
+      />
+      <EditListItemModal
+        isOpen={!!editingListItem}
+        onClose={()=>setEditingListItem(null)}
+        initial={editingListItem ? { id: editingListItem.id, name: editingListItem.name, quantity: editingListItem.qty||1, price: editingListItem.price||0, unit: editingListItem.unit as any } : null}
+        onSave={async (patch)=>{ await storage.updateListItem(id!, patch.listItemId, { quantity: patch.quantity, price: patch.price, unit: patch.unit }); await loadListDetail() }}
+        onDelete={async (listItemId)=>{ await storage.deleteListItem(id!, listItemId); await loadListDetail() }}
+      />
+      <EditListSettingsModal isOpen={showEditList} onClose={()=>setShowEditList(false)} list={listData} onSaved={(u)=>{ setListData(u) }} />
+
+      <ConfirmDialog
+        isOpen={confirmDeleteList}
+        title="Excluir lista"
+        description="Tem certeza que deseja excluir esta lista? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onCancel={()=>setConfirmDeleteList(false)}
+        onConfirm={async ()=>{
+          await storage.deleteList(id!)
+          window.history.back()
+        }}
+      />
+      {/* ConfirmDialog de exclusão de lista removido */}
     </div>
   )
 }
