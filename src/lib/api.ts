@@ -24,7 +24,14 @@ const COBRAR_CONTA_WEBHOOK = DEV
 const HEADERS = { 'Content-Type': 'application/json' }
 
 async function post<T = any>(path: string, body: any): Promise<T> {
-  const r = await fetch(`${BASE}${path}`, { method: 'POST', headers: HEADERS, body: JSON.stringify(body) })
+  const url = `${BASE}${path}`
+  const isAbsolute = /^https?:\/\//i.test(url)
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify(body),
+    ...(isAbsolute ? { mode: 'cors', credentials: 'omit' } : {}),
+  })
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
   return (await r.json()) as T
 }

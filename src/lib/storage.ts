@@ -1,13 +1,15 @@
-// Storage: uso obrigatório do Supabase; desabilita fallback local
+// Storage: usa Supabase quando configurado; caso contrário, fallback local para não quebrar em produção
 export type { Category, Item, ShoppingList, ListItem } from './storage.types'
 
 import { storage as storageSupabase } from './storage.supabase'
-export const storage = storageSupabase
-export const isSupabaseStorage = true
+import { storageLocal } from './storage.local'
+
+const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
+export const storage = hasSupabase ? storageSupabase : storageLocal
+export const isSupabaseStorage = hasSupabase
 
 if (import.meta.env.DEV) {
-  // Ajuda a identificar qual driver está ativo no console do navegador
   // eslint-disable-next-line no-console
-  console.info('[ListasZap] Storage driver:', 'supabase')
+  console.info('[ListasZap] Storage driver:', hasSupabase ? 'supabase' : 'local')
 }
 
