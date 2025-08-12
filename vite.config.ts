@@ -4,6 +4,16 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/n8n': {
+        target: 'https://zzotech-n8n.lgctvv.easypanel.host',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/n8n/, ''),
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

@@ -10,27 +10,35 @@ export function ProfilePage(){
   const [email, setEmail] = useState('')
   const [city, setCity] = useState('')
   const [showSaved, setShowSaved] = useState(false)
+  
 
   useEffect(() => {
-    // carregar perfil salvo (se existir)
+    // Carregar perfil salvo por usuário (chave por ID)
     try {
-      const raw = localStorage.getItem('lz_profile')
+      const key = user?.id ? `lz_profile_${user.id}` : 'lz_profile'
+      const raw = localStorage.getItem(key)
       if (raw) {
         const p = JSON.parse(raw) as { name?: string; email?: string; city?: string }
-        if (p.name) setName(p.name)
-        if (p.email) setEmail(p.email)
-        if (p.city) setCity(p.city)
+        setName(p.name || user?.name || '')
+        setEmail(p.email || '')
+        setCity(p.city || '')
+      } else {
+        // Sem perfil salvo: usar dados da sessão
+        setName(user?.name || '')
+        setEmail('')
+        setCity('')
       }
-      // fallback de email/cidade
-      if (!email) setEmail('')
-      if (!city) setCity('')
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+      // Migração: remover perfil global antigo para evitar poluição entre contas
+      if (localStorage.getItem('lz_profile')) localStorage.removeItem('lz_profile')
+    } catch {
+      setName(user?.name || '')
+    }
+  }, [user?.id])
 
   async function handleSave() {
     const profile = { name: name.trim(), email: email.trim(), city: city.trim() }
-    localStorage.setItem('lz_profile', JSON.stringify(profile))
+    const key = user?.id ? `lz_profile_${user.id}` : 'lz_profile'
+    localStorage.setItem(key, JSON.stringify(profile))
     // atualiza nome na sessão (mantém id/phone)
     if (user) {
       useSession.setState({ user: { ...user, name: profile.name } })

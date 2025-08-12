@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, X, Search } from 'lucide-react'
 import { storage } from '../lib/storage'
+import { api } from '../lib/api'
+import { useSession } from '../lib/session'
 import { QuickContactModal } from './QuickContactModal'
 
 interface Member {
@@ -21,6 +23,7 @@ export function AddMember({ members, onAddMember, onRemoveMember, allowRemove = 
   const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [visibleNameId, setVisibleNameId] = useState<string|null>(null)
+  const { user } = useSession()
 
   useEffect(()=>{ storage.getContacts().then(setContacts) }, [])
 
@@ -36,7 +39,16 @@ export function AddMember({ members, onAddMember, onRemoveMember, allowRemove = 
     // se casar com contato, usa o nome do contato
     const match = contacts.find(c => c.name.toLowerCase() === v.toLowerCase() || c.phone.replace(/\D/g,'') === v.replace(/\D/g,''))
     if (match) {
-      onAddMember(match.phone || match.name)
+      try {
+        // webhook: adicionar membro existente
+        const listId = (new URL(window.location.href)).pathname.split('/').pop() || ''
+        await api.addUserToList({ id_lista: listId, membro_nome: match.name, membro_phone: match.phone, userId: user?.id })
+        onAddMember(match.phone || match.name)
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Webhook add user failed:', e)
+        onAddMember(match.phone || match.name)
+      }
       setNewMemberName('')
       return
     }
@@ -116,7 +128,22 @@ export function AddMember({ members, onAddMember, onRemoveMember, allowRemove = 
             {suggestions.length>0 && (
               <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow">
                 {suggestions.map(s => (
-                  <button key={s.id} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between" onClick={()=>{ onAddMember(s.phone || s.name); setNewMemberName('') }}>
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between"
+                    onClick={async ()=>{
+                      try {
+                        const listId = (new URL(window.location.href)).pathname.split('/').pop() || ''
+                        await api.addUserToList({ id_lista: listId, membro_nome: s.name, membro_phone: s.phone, userId: user?.id })
+                      } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.error('Webhook add user (suggestion) failed:', e)
+                      }
+                      onAddMember(s.phone || s.name)
+                      setNewMemberName('')
+                    }}
+                  >
                     <span className="text-sm text-gray-800">{s.name}</span>
                     <span className="text-xs text-gray-500">{s.phone}</span>
                   </button>
@@ -205,6 +232,13 @@ export function AddMember({ members, onAddMember, onRemoveMember, allowRemove = 
         onSave={async ({ name, phone }) => {
           await storage.createContact({ name, phone })
           setContacts(await storage.getContacts())
+          try {
+            const listId = (new URL(window.location.href)).pathname.split('/').pop() || ''
+            await api.addUserToList({ id_lista: listId, membro_nome: name, membro_phone: phone, userId: user?.id })
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Webhook add user (new contact) failed:', e)
+          }
           onAddMember(phone || name)
           setNewMemberName('')
         }}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { storage, type ShoppingList } from '../lib/storage'
+import { api } from '../lib/api'
 
 interface EditListSettingsModalProps {
   isOpen: boolean
@@ -32,16 +33,30 @@ export function EditListSettingsModal({ isOpen, onClose, list, onSaved }: EditLi
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!list) return
-    const updated = await storage.updateList(list.id, {
-      name: name.trim() || list.name,
-      description,
-      type: listType,
-      // força split desativado quando a lista é pessoal
-      splitEnabled: listType === 'personal' ? false : splitEnabled,
-      includeOwnerInSplit: listType === 'personal' ? false : includeOwner,
-      allowMembersToInvite: listType === 'personal' ? false : allowInvite,
+    // Enviar webhook de configuração com booleans reais
+    const isShared = listType === 'shared'
+    await api.configurarListaViaWebhook({
+      id_lista: list.id,
+      nome: name.trim() || list.name,
+      descricao: description,
+      pessoal: !isShared,
+      compartilhada: isShared,
+      split_enabled: isShared ? !!splitEnabled : false,
+      include_owner_in_split: isShared ? !!includeOwner : false,
+      allow_members_invite: isShared ? !!allowInvite : false,
     })
-    onSaved?.(updated)
+
+    // Após a webhook, atualizar UI apenas com leitura (sem escrever no Supabase)
+    // Poll curto para esperar o n8n persistir as mudanças
+    let updated: ShoppingList | null = null
+    for (let i = 0; i < 6; i++) {
+      try {
+        updated = await storage.getList(list.id)
+        break
+      } catch {}
+      await new Promise(r => setTimeout(r, 500))
+    }
+    if (updated) onSaved?.(updated)
     onClose()
   }
 

@@ -7,6 +7,7 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   autoHeight?: boolean
+  centered?: boolean
 }
 
 export function useResponsiveModalSizing() {
@@ -95,7 +96,7 @@ export function useResponsiveModalSizing() {
   return dimensions
 }
 
-export function Modal({ isOpen, onClose, title, children, autoHeight = false }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, autoHeight = false, centered = false }: ModalProps) {
   const { height, maxHeight, minHeight, padding, borderRadius, topSpacing } = useResponsiveModalSizing()
   
   if (!isOpen) return null
@@ -109,7 +110,7 @@ export function Modal({ isOpen, onClose, title, children, autoHeight = false }: 
       />
       
       {/* Modal */}
-      <div className={`flex min-h-full items-start justify-center ${padding} ${topSpacing}`}>
+      <div className={`flex min-h-full ${centered ? 'items-center' : 'items-start'} justify-center ${padding} ${centered ? '' : topSpacing}`}>
         <div 
           className={`relative w-full max-w-sm sm:max-w-md bg-white ${borderRadius} shadow-xl transform transition-all ${autoHeight ? '' : 'flex flex-col'}`} 
           style={autoHeight ? { maxHeight } : { height, maxHeight, minHeight }}

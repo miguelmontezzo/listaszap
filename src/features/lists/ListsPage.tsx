@@ -6,6 +6,8 @@ import { ListCard } from '../../components/ListCard'
 import { NewListModal } from '../../components/NewListModal'
 import { storage } from '../../lib/storage'
 import { useSession } from '../../lib/session'
+import { useToast } from '../../components/Toast'
+import { api } from '../../lib/api'
 
 type L = { id: string; name: string; progress: number; total: number; real: number }
 
@@ -15,6 +17,7 @@ export function ListsPage(){
   const [showNewListModal, setShowNewListModal] = useState(false)
   const nav = useNavigate()
   const { user } = useSession()
+  const { show } = useToast()
 
   useEffect(()=>{
     loadLists()
@@ -23,13 +26,9 @@ export function ListsPage(){
   async function loadLists() {
     try {
       const data = await storage.getLists()
-      // Mostrar apenas listas que pertençam ao usuário ou que ele participe
-      const myDigits = (user?.phone || '').replace(/\D/g, '')
-      const visible = data.filter(list =>
-        (list.userId === user!.id) ||
-        ((list.memberNames || []).includes(user!.name)) ||
-        ((list.memberPhones || []).includes(myDigits))
-      )
+      // Agora o storage já retorna: listas criadas + listas em que sou membro.
+      // Não filtramos mais por nomes/telefones, para não esconder listas quando faltarem permissões de leitura dos membros.
+      const visible = data
       // Calcular estatísticas das listas
       const listsWithStats = visible.map(list => {
         const checkedItems = list.items.filter(item => item.checked).length
@@ -58,9 +57,34 @@ export function ListsPage(){
 
   async function handleCreateList(listData: any) {
     try {
-      await storage.createList({ ...listData, userId: user!.id })
-      await loadLists() // Recarregar listas
+      // Criar exclusivamente via webhook (n8n). Sem fallback no Supabase.
+      const webhook = import.meta.env.VITE_N8N_CREATE_LIST_WEBHOOK || `${import.meta.env.VITE_N8N_BASE || ''}/criarlista`
+      if (!webhook) throw new Error('Webhook de criação de lista não configurada')
+
+      const isShared = listData.type === 'shared'
+      const webhookRes = await api.criarListaViaWebhook({
+        userId: user!.id,
+        ...listData,
+        pessoal: !isShared,
+        compartilhada: isShared,
+      })
+
+      // Após criar via webhook, aguarda breve período para o Supabase refletir (n8n inserir)
+      // Faz até 6 tentativas (3s total) para recarregar as listas
+      for (let i = 0; i < 6; i++) {
+        try {
+          await loadLists()
+          // Se veio um id do webhook, tenta verificar se a lista já está visível
+          if (webhookRes.id) {
+            // lista carregada acima já atualizou o estado; nada mais a fazer aqui
+            break
+          }
+        } catch {}
+        await new Promise(r => setTimeout(r, 500))
+      }
+
       setShowNewListModal(false)
+      show(`Lista "${listData.name}" criada com sucesso!`)
     } catch (error) {
       console.error('Erro ao criar lista:', error)
       alert('Erro ao criar lista. Tente novamente.')

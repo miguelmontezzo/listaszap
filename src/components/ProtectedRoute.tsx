@@ -13,6 +13,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth/entrar" replace />
   }
 
+
   // Se tem usuário, renderiza o conteúdo protegido
   return <>{children}</>
 }

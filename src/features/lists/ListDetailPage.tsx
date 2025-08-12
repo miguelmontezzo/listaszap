@@ -13,6 +13,7 @@ import { PixChargeModal } from '../../components/PixChargeModal'
 // duplicate import removed
 import { EditListSettingsModal } from '../../components/EditListSettingsModal'
 import { storage, type Item as StorageItem, type Category as StorageCategory, type ShoppingList } from '../../lib/storage'
+import { api } from '../../lib/api'
 import { useSession } from '../../lib/session'
 
 type Item = { id: string; name: string; checked: boolean; qty?: number; price?: number; category?: string; categoryId?: string; categoryColor?: string; unit?: string }
@@ -46,19 +47,22 @@ export function ListDetailPage(){
 
   async function loadListDetail() {
     try {
-      const [list, allItems, categories] = await Promise.all([
-        storage.getList(id!),
-        storage.getItems(),
-        storage.getCategories()
-      ])
+      const list = await storage.getList(id!)
+      // Buscar somente os itens/categorias necessários, sem depender do owner do item/categoria
+      const itemIds = Array.from(new Set(list.items.map((li: any) => li.itemId).filter(Boolean)))
+      const itemsResult = (storage as any).getItemsByIds ? await (storage as any).getItemsByIds(itemIds) : await storage.getItems()
+      const allItems = itemsResult as StorageItem[]
+      const catIds = Array.from(new Set(allItems.map((i: StorageItem) => i.categoryId).filter(Boolean)))
+      const categoriesResult = (storage as any).getCategoriesByIds ? await (storage as any).getCategoriesByIds(catIds) : await storage.getCategories()
+      const categories = categoriesResult as StorageCategory[]
       setListData(list)
       // splitEnabled tratado via listData
       // hidratar membros a partir da lista persistida
       if (Array.isArray(list.memberNames)) {
         setMembers(list.memberNames.map((name, idx) => ({ id: `${idx}`, name })))
       }
-      const catMetaById = new Map(categories.map(c => [c.id, { name: c.name, color: c.color }]))
-      const itemById = new Map(allItems.map(i => [i.id, i]))
+      const catMetaById = new Map<string, { name: string; color: string }>(categories.map((c: StorageCategory) => [c.id, { name: c.name, color: c.color }]))
+      const itemById = new Map<string, StorageItem>(allItems.map((i: StorageItem) => [i.id, i]))
       const listItems = list.items.map((listItem: any) => {
         const itemInfo = itemById.get(listItem.itemId)
         const meta = itemInfo ? catMetaById.get(itemInfo.categoryId) : undefined
@@ -104,24 +108,13 @@ export function ListDetailPage(){
   }
 
   async function handleAddMember(nameOrPhone: string) {
-    // tentar resolver para nome de contato quando vier telefone
-    const contacts = await storage.getContacts()
-    const digits = nameOrPhone.replace(/\D/g, '')
-    const match = digits ? contacts.find(c => c.phone.replace(/\D/g,'') === digits) : undefined
-    const memberNameToStore = match?.name || nameOrPhone
-
-    const newMember: Member = { id: Date.now().toString(), name: memberNameToStore }
-    setMembers(prev => [...prev, newMember])
-    if (listData) {
-      const names = [...(listData.memberNames||[]), memberNameToStore]
-      const phones = [...(listData.memberPhones||[])]
-      if (digits) phones.push(digits)
-      // salvar membros e telefones
-      let updated = await storage.updateList(listData.id, { memberNames: names, memberPhones: phones, memberCount: names.length, type: 'shared' })
-      // promover para o store compartilhado (idempotente): garante visibilidade para o membro
-      updated = await storage.promoteListToShared(listData.id)
-      setListData(updated)
-    }
+    // A adição de membro agora é feita exclusivamente via webhook (componente AddMember dispara o webhook).
+    // Aqui somente refletimos a mudança visualmente e recarregamos a lista para sincronizar do backend.
+    const placeholder: Member = { id: Date.now().toString(), name: nameOrPhone }
+    setMembers(prev => [...prev, placeholder])
+    // Pequeno atraso para dar tempo do n8n escrever no Supabase
+    await new Promise(r => setTimeout(r, 400))
+    await loadListDetail()
   }
 
   async function handleRemoveMember(id: string) {
@@ -152,7 +145,21 @@ export function ListDetailPage(){
         itemId = created.id
       }
       const createdBy = user?.name
-      await storage.addItemToList(id!, { itemId, quantity: itemData.qty, price: itemData.price, unit: (itemData.unit as any), createdBy })
+      const ensuredItemId = itemId as string
+      // Primeiro dispara webhook (fonte da verdade)
+      await api.inserirItemNaLista({
+        id_lista: id!,
+        id_item: ensuredItemId,
+        nome: itemData.name,
+        id_categoria: itemData.categoryId,
+        quantidade: typeof itemData.qty === 'number' ? itemData.qty : undefined,
+        preco_unitario: typeof itemData.price === 'number' ? itemData.price : undefined,
+        unidade: (itemData.unit as any),
+        criado_por: createdBy,
+        userId: user?.id,
+      })
+      // Depois sincroniza a visualização a partir do Supabase (apenas reload)
+      await new Promise(r => setTimeout(r, 300))
       await loadListDetail()
     } catch (e) {
       console.error('Erro ao adicionar item à lista:', e)
@@ -178,16 +185,18 @@ export function ListDetailPage(){
   // Abrir categorias por padrão e minimizar automaticamente quando concluídas
   useEffect(() => {
     setOpenCats(prev => {
-      const next = { ...prev }
+      let changed = false
+      const next: Record<string, boolean> = { ...prev }
       for (const g of groups) {
         const allChecked = g.items.length > 0 && g.items.every(i => !!i.checked)
         // Se ainda não existe estado, definir: aberto por padrão; mas se já vier concluída, fechar por padrão
         if (next[g.name] === undefined) {
           next[g.name] = allChecked ? false : true
+          changed = true
         }
         // Não forçar fechar novamente se o usuário reabrir manualmente
       }
-      return next
+      return changed ? next : prev
     })
   }, [groups])
 
@@ -218,6 +227,12 @@ export function ListDetailPage(){
     const myDigits = (user.phone || '').replace(/\D/g, '')
     const nextNames = (listData.memberNames||[]).filter(n => n !== user.name)
     const nextPhones = (listData.memberPhones||[]).filter(p => p !== myDigits)
+    try {
+      await api.excluirOuSairLista({ id_lista: listData.id, userId: user.id, action: 'sair' })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Webhook sair lista falhou, seguindo com fallback local:', e)
+    }
     const updated = await storage.updateList(listData.id, { memberNames: nextNames, memberPhones: nextPhones, memberCount: nextNames.length })
     setListData(updated)
     setLeftSuccess(true)
@@ -525,7 +540,12 @@ export function ListDetailPage(){
         confirmLabel="Excluir"
         onCancel={()=>setConfirmDeleteList(false)}
         onConfirm={async ()=>{
-          await storage.deleteList(id!)
+          try {
+            await api.excluirOuSairLista({ id_lista: id!, userId: user?.id, action: 'excluir' })
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Webhook excluir lista falhou, seguindo com delete local:', e)
+          }
           window.history.back()
         }}
       />

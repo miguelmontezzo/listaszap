@@ -8,6 +8,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   onConfirm: () => void | Promise<void>
   onCancel: () => void
+  centered?: boolean
 }
 
 export function ConfirmDialog({
@@ -18,9 +19,10 @@ export function ConfirmDialog({
   cancelLabel = 'Cancelar',
   onConfirm,
   onCancel,
+  centered = false,
 }: ConfirmDialogProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onCancel} title={title} autoHeight>
+    <Modal isOpen={isOpen} onClose={onCancel} title={title} autoHeight centered={centered}>
       <div className="p-4 space-y-5">
         <div className="text-base leading-relaxed text-gray-700">{description}</div>
         <div className="flex gap-3">

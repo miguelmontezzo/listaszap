@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Copy, DollarSign, Phone, Mail, CreditCard, Hash, Shuffle, RotateCcw, X, CheckCircle2 } from 'lucide-react'
 import { Modal, useResponsiveModalSizing } from './Modal'
+import { api } from '../lib/api'
 
 interface PixChargeModalProps {
   isOpen: boolean
@@ -98,17 +99,12 @@ export function PixChargeModal({
     setPixKey(maskedValue)
   }
 
-  const generatePixMessage = () => {
-    const message = `🛒 *${listName}*\n\n` +
-      `💰 Sua parte: *R$ ${amountPerPerson.toFixed(2)}*\n` +
-      `👥 Total dividido entre ${memberCount} pessoas\n\n` +
-      `📋 *PIX para pagamento:*\n` +
-      `${pixKey}\n\n` +
-      `✅ Após o pagamento, confirme no grupo!\n\n` +
-      `_Enviado pelo ListasZap 📱_`
-    
-    return encodeURIComponent(message)
-  }
+  const buildWebhookPayload = () => ({
+    pix_key: pixKey,
+    pix_key_type: selectedKeyType,
+    valor_por_pessoa: amountPerPerson,
+    participantes: members.map(m => ({ nome: m.name })),
+  })
 
   const handleSendCharges = async () => {
     if (!pixKey.trim()) {
@@ -119,25 +115,11 @@ export function PixChargeModal({
     setIsLoading(true)
     
     try {
-      const message = generatePixMessage()
-      
-      // Simular envio para cada membro
-      for (const member of members) {
-        // Para demonstração, vamos simular o WhatsApp Web
-        // Na implementação real, seria integrado com a API do WhatsApp Business
-        const whatsappUrl = `https://wa.me/?text=${message}`
-        
-        // Abrir em nova aba (em produção seria enviado automaticamente)
-        window.open(whatsappUrl, '_blank')
-        
-        // Aguardar um pouco entre envios para não sobrecarregar
-        await new Promise(resolve => setTimeout(resolve, 500))
-      }
-      
+      const listId = (new URL(window.location.href)).pathname.split('/').pop() || ''
+      await api.cobrarConta({ id_lista: listId, ...buildWebhookPayload() })
       try { onCharged && onCharged() } catch {}
       setSuccessOpen(true)
       setTimeout(() => { setSuccessOpen(false); onClose() }, 1500)
-      
     } catch (error) {
       console.error('Erro ao enviar cobranças:', error)
       alert('Erro ao enviar cobranças. Tente novamente.')

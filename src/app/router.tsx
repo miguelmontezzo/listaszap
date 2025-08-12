@@ -4,6 +4,7 @@ import { Layout } from './layout'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 import { RequestOtp } from '../features/auth/RequestOtp'
 import { VerifyOtp } from '../features/auth/VerifyOtp'
+import { SignupPage } from '../features/auth/SignupPage'
 import { ListsPage } from '../features/lists/ListsPage'
 import { ListDetailPage } from '../features/lists/ListDetailPage'
 import { InventoryPage } from '../features/inventory/InventoryPage'
@@ -15,6 +16,7 @@ import { ContactsPage } from '../features/contacts/ContactsPage'
 
 export const router = createBrowserRouter([
   { path: '/auth/entrar', element: <RequestOtp /> },
+  { path: '/auth/cadastro', element: <SignupPage /> },
   { path: '/auth/codigo', element: <VerifyOtp /> },
   {
     path: '/',
