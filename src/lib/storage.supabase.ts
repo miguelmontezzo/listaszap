@@ -22,7 +22,20 @@ export const storage = {
   async getContacts(): Promise<{ id: string; name: string; phone: string }[]> {
     const uid = (JSON.parse(localStorage.getItem('lz_session') || '{}')?.user?.id) as string | undefined
     const q = supabase.from(T.contacts).select('id, nome, numero_whatsapp, id_usuario')
-    const { data, error } = uid ? await q.eq('id_usuario', uid) : await q
+    let resp
+    if (uid) {
+      const digits = String(uid).replace(/\D/g, '')
+      const candidates = Array.from(new Set([
+        digits,
+        digits.startsWith('55') ? digits.slice(2) : `55${digits}`,
+        `+${digits}`,
+        digits.startsWith('55') ? `+${digits.slice(2)}` : `+${digits}`,
+      ]))
+      resp = await q.in('id_usuario', candidates)
+    } else {
+      resp = await q
+    }
+    const { data, error } = resp
     const rows = ensureOk(data, error) as any[]
     return rows.map(r => ({ id: r.id, name: r.nome, phone: r.numero_whatsapp }))
   },
@@ -53,7 +66,16 @@ export const storage = {
   async getCategories(): Promise<Category[]> {
     const uid = (JSON.parse(localStorage.getItem('lz_session') || '{}')?.user?.id) as string | undefined
     let q = supabase.from(T.categories).select('id_categoria, nome_categoria, cor_categoria, id_usuario')
-    if (uid) q = q.eq('id_usuario', uid)
+    if (uid) {
+      const digits = String(uid).replace(/\D/g, '')
+      const candidates = Array.from(new Set([
+        digits,
+        digits.startsWith('55') ? digits.slice(2) : `55${digits}`,
+        `+${digits}`,
+        digits.startsWith('55') ? `+${digits.slice(2)}` : `+${digits}`,
+      ]))
+      q = q.in('id_usuario', candidates)
+    }
     const { data, error } = await q.order('nome_categoria', { ascending: true })
     const rows = ensureOk(data, error) as any[]
     return rows.map(r => ({ id: r.id_categoria, name: r.nome_categoria, color: r.cor_categoria }))
@@ -94,7 +116,16 @@ export const storage = {
   async getItems(): Promise<Item[]> {
     const uid = (JSON.parse(localStorage.getItem('lz_session') || '{}')?.user?.id) as string | undefined
     let q = supabase.from(T.items).select('id_item, nome_do_item, valor_do_item, valor_por_unidade_ou_peso, id_categoria, id_usuario, unidade_padrao, quantidade_padrao')
-    if (uid) q = q.eq('id_usuario', uid)
+    if (uid) {
+      const digits = String(uid).replace(/\D/g, '')
+      const candidates = Array.from(new Set([
+        digits,
+        digits.startsWith('55') ? digits.slice(2) : `55${digits}`,
+        `+${digits}`,
+        digits.startsWith('55') ? `+${digits.slice(2)}` : `+${digits}`,
+      ]))
+      q = q.in('id_usuario', candidates)
+    }
     const { data, error } = await q
     const rows = ensureOk(data, error) as any[]
     return rows.map(r => ({
@@ -171,10 +202,25 @@ export const storage = {
     const uid = (JSON.parse(localStorage.getItem('lz_session') || '{}')?.user?.id) as string | undefined
 
     // 1) Listas criadas pelo usuário
-    const createdResp = await supabase
-      .from(T.lists)
-      .select('*, item_listas(*)')
-      .eq('id_criador', uid || null)
+    let createdResp
+    if (uid) {
+      const digits = String(uid).replace(/\D/g, '')
+      const candidates = Array.from(new Set([
+        digits,
+        digits.startsWith('55') ? digits.slice(2) : `55${digits}`,
+        `+${digits}`,
+        digits.startsWith('55') ? `+${digits.slice(2)}` : `+${digits}`,
+      ]))
+      createdResp = await supabase
+        .from(T.lists)
+        .select('*, item_listas(*)')
+        .in('id_criador', candidates)
+    } else {
+      createdResp = await supabase
+        .from(T.lists)
+        .select('*, item_listas(*)')
+        .eq('id_criador', null)
+    }
     const createdRows = ensureOk(createdResp.data, createdResp.error) as any[]
 
     // 2) Listas onde o usuário é membro (id_membro = uid)
@@ -183,10 +229,17 @@ export const storage = {
       let mIds: any = null
       let mErr: any = null
       {
+        const digits = String(uid).replace(/\D/g, '')
+        const candidates = Array.from(new Set([
+          digits,
+          digits.startsWith('55') ? digits.slice(2) : `55${digits}`,
+          `+${digits}`,
+          digits.startsWith('55') ? `+${digits.slice(2)}` : `+${digits}`,
+        ]))
         const resp = await supabase
           .from(T.listMembers)
           .select('id_lista')
-          .eq('id_membro', uid)
+          .in('id_membro', candidates)
         mIds = resp.data; mErr = resp.error
       }
       if (mErr && mErr.code === 'PGRST205') {
