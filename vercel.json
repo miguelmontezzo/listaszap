@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/webhook/(.*)", "destination": "https://zzotech-n8n.lgctvv.easypanel.host/webhook/$1" },
     { "source": "/((?!assets|icons|manifest\\.webmanifest|favicon\\.ico).*)", "destination": "/" }
   ]
 }
