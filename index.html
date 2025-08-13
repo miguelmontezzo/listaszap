@@ -5,7 +5,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>ListasZap</title>
-    <meta name="theme-color" content="#16a34a">
+    <meta name="theme-color" content="#f5f6fa">
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('lz_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = stored || 'system';
+          if (theme !== 'system') document.documentElement.setAttribute('data-theme', theme);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', (theme==='dark' || (theme==='system' && prefersDark)) ? '#0b0f14' : '#f5f6fa');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/x-icon" href="/icons/favicon.ico" />
     <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />

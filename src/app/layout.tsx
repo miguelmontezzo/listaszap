@@ -24,6 +24,13 @@ export function Layout() {
       } else {
         root.setAttribute('data-theme', theme)
       }
+      // Atualiza a theme-color para status bar no PWA
+      const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+      if (meta) {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        const effectiveDark = theme === 'dark' || (theme === 'system' && prefersDark)
+        meta.setAttribute('content', effectiveDark ? '#0b0f14' : '#f5f6fa')
+      }
     }
     apply()
 
@@ -32,6 +39,11 @@ export function Layout() {
       if (theme === 'system') {
         const root = document.documentElement
         root.removeAttribute('data-theme')
+        const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+        if (meta) {
+          const prefersDarkNow = mq.matches
+          meta.setAttribute('content', prefersDarkNow ? '#0b0f14' : '#f5f6fa')
+        }
       }
     }
     mq.addEventListener?.('change', handle)
