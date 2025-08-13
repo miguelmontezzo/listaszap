@@ -21,6 +21,12 @@ const DELETE_OR_LEAVE_LIST_WEBHOOK = DEV
 const COBRAR_CONTA_WEBHOOK = DEV
   ? '/n8n/webhook/cobrarconta'
   : (import.meta.env.VITE_N8N_COBRAR_CONTA_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/cobrarconta')
+const REMOVE_LIST_ITEM_WEBHOOK = DEV
+  ? '/n8n/webhook/removeritemdalista'
+  : (import.meta.env.VITE_N8N_REMOVE_LIST_ITEM_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/removeritemdalista')
+const REMOVE_USER_LIST_WEBHOOK = DEV
+  ? '/n8n/webhook/removeuserlist'
+  : (import.meta.env.VITE_N8N_REMOVE_USER_LIST_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/removeuserlist')
 const HEADERS = { 'Content-Type': 'application/json' }
 
 async function post<T = any>(path: string, body: any): Promise<T> {
@@ -308,6 +314,48 @@ export const api = {
     return { success: true, message: body?.message }
   },
 
+  removeUserFromList: async (payload: {
+    id_lista: string
+    membro_nome?: string
+    membro_phone?: string
+    owner_id?: string
+    member_id?: string
+    userId?: string
+  }): Promise<{ success: boolean; message?: string }> => {
+    const url = REMOVE_USER_LIST_WEBHOOK
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[Webhook] remove user from list via', url, payload)
+    }
+    const digits = String(payload.membro_phone || payload.member_id || '').replace(/\D/g, '')
+    const canonical = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : undefined
+    const ownerDigits = String(payload.owner_id || '').replace(/\D/g, '')
+    const ownerCanonical = ownerDigits ? (ownerDigits.startsWith('55') ? ownerDigits : `55${ownerDigits}`) : undefined
+    const finalPayload: any = {
+      ...payload,
+      listId: payload.id_lista,
+      memberName: payload.membro_nome,
+      memberPhone: canonical,
+      telefone: canonical,
+      memberId: canonical,
+      id_membro: canonical,
+      ownerId: ownerCanonical,
+      id_criador: ownerCanonical,
+    }
+    const isProxied = url.startsWith('/n8n/')
+    const r = await fetch(url, { method: 'POST', ...(isProxied ? {} : { mode: 'cors', credentials: 'omit' }), headers: HEADERS, body: JSON.stringify(finalPayload) })
+    const text = await r.text()
+    let body: any = null
+    try { body = text ? JSON.parse(text) : null } catch { body = text }
+    if (Array.isArray(body) && body.length > 0) body = body[0]
+    if (typeof body?.response === 'string') { try { body = JSON.parse(body.response) } catch {} }
+    if (!r.ok) {
+      const msg = (typeof body === 'string' ? body : (body?.message || body?.error || JSON.stringify(body))) || `HTTP ${r.status}`
+      throw new Error(msg)
+    }
+    return { success: true, message: body?.message }
+  },
+
   excluirOuSairLista: async (payload: {
     id_lista: string
     userId?: string
@@ -356,6 +404,9 @@ export const api = {
     pix_key: string
     pix_key_type?: string
     valor_por_pessoa: number
+    total_amount?: number
+    participant_count?: number
+    list_name?: string
     participantes?: { id?: string; nome?: string; phone?: string }[]
   }): Promise<{ success: boolean; message?: string }> => {
     const url = COBRAR_CONTA_WEBHOOK
@@ -367,9 +418,45 @@ export const api = {
       ...payload,
       listId: payload.id_lista,
       amountPerPerson: payload.valor_por_pessoa,
+      totalAmount: payload.total_amount,
+      total: payload.total_amount,
+      participantCount: payload.participant_count,
+      participantsCount: payload.participant_count,
       participants: payload.participantes,
       pixKey: payload.pix_key,
       pixKeyType: payload.pix_key_type,
+      listName: payload.list_name,
+      timestamp: new Date().toISOString(),
+    }
+    const isProxied = url.startsWith('/n8n/')
+    const r = await fetch(url, { method: 'POST', ...(isProxied ? {} : { mode: 'cors', credentials: 'omit' }), headers: HEADERS, body: JSON.stringify(finalPayload) })
+    const text = await r.text()
+    let body: any = null
+    try { body = text ? JSON.parse(text) : null } catch { body = text }
+    if (Array.isArray(body) && body.length > 0) body = body[0]
+    if (typeof body?.response === 'string') { try { body = JSON.parse(body.response) } catch {} }
+    if (!r.ok) {
+      const msg = (typeof body === 'string' ? body : (body?.message || body?.error || JSON.stringify(body))) || `HTTP ${r.status}`
+      throw new Error(msg)
+    }
+    return { success: true, message: body?.message }
+  },
+
+  removerItemDaLista: async (payload: {
+    id_lista: string
+    id_item_lista: string
+    userId?: string
+  }): Promise<{ success: boolean; message?: string }> => {
+    const url = REMOVE_LIST_ITEM_WEBHOOK
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[Webhook] remover item via', url, payload)
+    }
+    const finalPayload: any = {
+      ...payload,
+      listId: payload.id_lista,
+      listItemId: payload.id_item_lista,
+      id: payload.id_item_lista,
       timestamp: new Date().toISOString(),
     }
     const isProxied = url.startsWith('/n8n/')

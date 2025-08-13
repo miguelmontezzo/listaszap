@@ -30,6 +30,7 @@ export type ShoppingList = {
   memberCount?: number
   memberNames?: string[]
   memberPhones?: string[]
+  memberIds?: string[]
   splitEnabled?: boolean
   includeOwnerInSplit?: boolean
   charges?: {

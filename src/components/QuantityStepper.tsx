@@ -40,6 +40,31 @@ export function QuantityStepper({ value, unit, onChange, className = '' }: Quant
     onChange(formatValue(next, unit))
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value
+    if (unit === 'unidade') {
+      const onlyDigits = raw.replace(/\D/g, '')
+      onChange(onlyDigits)
+      return
+    }
+    // unidade 'peso': aceitar decimais (., ,) e números
+    let cleaned = raw.replace(/[^0-9.,]/g, '')
+    // normalizar para ponto como separador decimal
+    cleaned = cleaned.replace(/,/g, '.')
+    // manter apenas o primeiro ponto decimal
+    const firstDot = cleaned.indexOf('.')
+    if (firstDot !== -1) {
+      cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '')
+    }
+    onChange(cleaned)
+  }
+
+  function handleBlur() {
+    const num = parseFloat(String(value).replace(',', '.'))
+    const normalized = clamp(num, min)
+    onChange(formatValue(normalized, unit))
+  }
+
   return (
     <div className={`flex items-center justify-between border border-gray-300 rounded-xl px-2 py-2 ${className}`}>
       <button
@@ -50,8 +75,17 @@ export function QuantityStepper({ value, unit, onChange, className = '' }: Quant
       >
         −
       </button>
-      <div className="flex items-baseline gap-2 select-none">
-        <span className="text-lg font-medium text-gray-900">{formatValue(current, unit)}</span>
+      <div className="flex items-baseline gap-2">
+        <input
+          type="text"
+          inputMode={unit === 'peso' ? 'decimal' : 'numeric'}
+          value={String(value)}
+          onChange={handleInputChange}
+          onBlur={handleBlur}
+          className="w-20 text-center py-1 bg-transparent outline-none border-0 text-lg font-medium text-gray-900"
+          aria-label={unit === 'peso' ? 'Peso' : 'Quantidade'}
+          placeholder={unit === 'peso' ? '0.5' : '1'}
+        />
         <span className="text-sm text-gray-500">{unit === 'peso' ? 'kg' : 'un'}</span>
       </div>
       <button

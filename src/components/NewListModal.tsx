@@ -15,22 +15,16 @@ type ListType = 'personal' | 'shared'
 export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProps) {
   const { padding } = useResponsiveModalSizing()
   const [formData, setFormData] = useState({
-    name: '', description: '', type: 'personal' as ListType, memberCount: 2, memberNames: ['', ''], initialItems: [] as string[]
+    name: '', description: '', type: 'personal' as ListType, initialItems: [] as string[]
   })
   const [showItemSelector, setShowItemSelector] = useState(false)
   const [allItems, setAllItems] = useState<StorageItem[]>([])
   const [allCategories, setAllCategories] = useState<StorageCategory[]>([])
-  const [contacts, setContacts] = useState<{ id: string; name: string; phone: string }[]>([])
-  const [createContactOpen, setCreateContactOpen] = useState(false)
-  const [prefillName, setPrefillName] = useState('')
-  const [prefillPhone, setPrefillPhone] = useState('')
-  const [openSuggestIndex, setOpenSuggestIndex] = useState<number|null>(null)
-  const [creatingIndex, setCreatingIndex] = useState<number|null>(null)
+  // Removido fluxo de membros ao criar lista
 
   useEffect(()=>{ (async()=>{
     const [items, cats] = await Promise.all([storage.getItems(), storage.getCategories()])
-    const cons = await storage.getContacts()
-    setAllItems(items); setAllCategories(cats); setContacts(cons)
+    setAllItems(items); setAllCategories(cats)
   })() }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -40,9 +34,6 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
       name: formData.name.trim(),
       description: formData.description.trim(),
       type: formData.type,
-      memberCount: formData.type === 'shared' ? formData.memberCount : 1,
-      memberNames: formData.type === 'shared' ? formData.memberNames.filter(n=>n.trim()) : [],
-      memberPhones: formData.type === 'shared' ? formData.memberNames.map(v=>v.replace(/\D/g,'')).filter(Boolean) : [],
       initialItems: formData.initialItems
     }
     onCreateList(listData)
@@ -50,32 +41,12 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
   }
 
   const handleClose = () => {
-    setFormData({ name: '', description: '', type: 'personal', memberCount: 2, memberNames: ['', ''], initialItems: [] })
+    setFormData({ name: '', description: '', type: 'personal', initialItems: [] })
     setShowItemSelector(false)
     onClose()
   }
 
-  const updateMemberCount = (count:number)=>{
-    const newCount = Math.max(2, Math.min(8, count))
-    const newNames = [...formData.memberNames]
-    if (newCount > newNames.length) { for (let i=newNames.length;i<newCount;i++) newNames.push('') }
-    else newNames.splice(newCount)
-    setFormData(prev=>({ ...prev, memberCount:newCount, memberNames:newNames }))
-  }
-
-  const updateMemberName = (index:number, name:string)=>{
-    const newNames = [...formData.memberNames]; newNames[index]=name; setFormData(prev=>({...prev, memberNames:newNames })); setOpenSuggestIndex(name.trim()?index:null)
-  }
-
-  function suggestionsFor(index:number){
-    const q = (formData.memberNames[index]||'').trim().toLowerCase(); if (!q) return [] as {id:string;name:string;phone:string}[]
-    return contacts.filter(c=> c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)).slice(0,5)
-  }
-
-  function openCreateContactFor(index:number){
-    const value = formData.memberNames[index]||''; const only = value.replace(/\D/g,''); const isPhone = only.length>=8
-    setPrefillName(isPhone?'' : value); setPrefillPhone(isPhone? value : ''); setCreateContactOpen(true); setCreatingIndex(index)
-  }
+  // Removidos controles de membros (count, names, sugestões, criar contato)
 
   const groupedItems = allItems.reduce((acc, item)=>{ const cat = allCategories.find(c=>c.id===item.categoryId); const name = cat?.name||'Sem categoria'; (acc[name] ||= []).push(item); return acc }, {} as Record<string, StorageItem[]>)
 
@@ -110,42 +81,7 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
                 </button>
               </div>
             </div>
-            {formData.type==='shared' && (
-              <div className="card space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Número de Pessoas</label>
-                  <div className="flex items-center gap-3">
-                    <button type="button" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95" onClick={()=>updateMemberCount(formData.memberCount-1)} disabled={formData.memberCount<=2}><Minus size={14}/></button>
-                    <span className="w-12 text-center font-semibold text-lg">{formData.memberCount}</span>
-                    <button type="button" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 active:scale-95" onClick={()=>updateMemberCount(formData.memberCount+1)} disabled={formData.memberCount>=8}><Plus size={14}/></button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nomes/telefones dos membros</label>
-                  <div className="space-y-2">
-                    {formData.memberNames.map((name, index)=>{
-                      const sugg = suggestionsFor(index)
-                      return (
-                        <div key={index} className="relative">
-                          <input type="text" className="input" placeholder={`Pessoa ${index+1} (nome ou telefone)`} value={name} onChange={(e)=>updateMemberName(index, e.target.value)} onFocus={()=> setOpenSuggestIndex(index)} />
-                          {openSuggestIndex===index && sugg.length>0 && (
-                            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow">
-                              {sugg.map(s => (
-                                <button key={s.id} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between" onClick={()=>{ const newNames=[...formData.memberNames]; newNames[index]=s.phone||s.name; setFormData(prev=>({...prev, memberNames:newNames})); setOpenSuggestIndex(null) }}>
-                                  <span className="text-sm text-gray-800">{s.name}</span>
-                                  <span className="text-xs text-gray-500">{s.phone}</span>
-                                </button>
-                              ))}
-                              <button type="button" className="w-full text-left px-3 py-2 text-xs text-green-700 hover:bg-green-50" onClick={()=>{ openCreateContactFor(index); setOpenSuggestIndex(null) }}>+ Criar novo contato</button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Removido bloco de membros no modal de criação */}
             <div className="card">
               <div className="flex items-center justify-between mb-3">
                 <label className="text-sm font-medium text-gray-700">Itens Iniciais (opcional)</label>
@@ -179,7 +115,7 @@ export function NewListModal({ isOpen, onClose, onCreateList }: NewListModalProp
         </div>
       </div>
     </Modal>
-    <QuickContactModal isOpen={createContactOpen} onClose={()=>setCreateContactOpen(false)} initialName={prefillName} initialPhone={prefillPhone} onSave={async({name, phone})=>{ await storage.createContact({ name, phone }); setContacts(await storage.getContacts()); let target = creatingIndex ?? formData.memberNames.findIndex(n=>!n.trim()); if (target===-1) target=0; const newNames=[...formData.memberNames]; newNames[target]=phone||name; setFormData(prev=>({...prev, memberNames:newNames})); setCreatingIndex(null) }} />
+    {/* Removido QuickContactModal do fluxo de criação */}
     </>
   )
 }

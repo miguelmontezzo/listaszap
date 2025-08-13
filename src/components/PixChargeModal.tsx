@@ -10,7 +10,7 @@ interface PixChargeModalProps {
   memberCount: number
   amountPerPerson: number
   listName: string
-  members: { id: string; name: string }[]
+  members: { id: string; name: string; phone?: string }[]
 }
 
 type PixKeyType = 'cpf' | 'cnpj' | 'email' | 'phone' | 'random' | 'copy-paste'
@@ -103,7 +103,10 @@ export function PixChargeModal({
     pix_key: pixKey,
     pix_key_type: selectedKeyType,
     valor_por_pessoa: amountPerPerson,
-    participantes: members.map(m => ({ nome: m.name })),
+    total_amount: totalAmount,
+    participant_count: memberCount,
+    list_name: listName,
+    participantes: members.map(m => ({ nome: m.name, phone: (m.phone || '').replace(/\D/g, '') || undefined })),
   })
 
   const handleSendCharges = async () => {

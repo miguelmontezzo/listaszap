@@ -278,7 +278,7 @@ export const storage = {
 
     // Buscar membros de todas as listas em um único roundtrip
     const listIds = rows.map((r: any) => r.id ?? r.id_lista).filter(Boolean)
-    let membersByListId = new Map<string, { names: string[]; phones: string[] }>()
+    let membersByListId = new Map<string, { names: string[]; phones: string[]; ids: string[] }>()
     if (listIds.length > 0) {
       // Tentativa primária
       let mData: any = null
@@ -312,16 +312,17 @@ export const storage = {
         const lid = m.id_lista as string
         const name = (m.membro_nome ?? m.nome ?? '').trim()
         const phone = (m.id_membro ?? m.membro_phone ?? m.numero_whatsapp ?? '').toString()
-        const current = membersByListId.get(lid) || { names: [], phones: [] }
+        const current = membersByListId.get(lid) || { names: [], phones: [], ids: [] }
         if (name) current.names.push(name)
         if (phone) current.phones.push(phone.replace(/\D/g, ''))
+        if (m.id) current.ids.push(String(m.id))
         membersByListId.set(lid, current)
       }
     }
 
     const mapRow = (r: any): ShoppingList => {
       const isShared = r.type ? r.type === 'shared' : !!r.lista_compartilhada
-      const members = membersByListId.get(r.id ?? r.id_lista) || { names: [], phones: [] }
+      const members = membersByListId.get(r.id ?? r.id_lista) || { names: [], phones: [], ids: [] }
       return {
         id: r.id ?? r.id_lista,
         name: r.name ?? r.nome_da_lista,
@@ -332,6 +333,7 @@ export const storage = {
         memberCount: r.memberCount ?? r.quantidade_pessoas ?? (members.names.length || 1),
         memberNames: members.names,
         memberPhones: members.phones,
+        memberIds: members.ids,
         splitEnabled: r.splitEnabled ?? r.split_enabled ?? false,
         includeOwnerInSplit: r.includeOwnerInSplit ?? r.include_owner_in_split ?? false,
         allowMembersToInvite: r.allowMembersToInvite ?? r.allow_members_invite ?? false,
@@ -392,6 +394,7 @@ export const storage = {
     const mRows = ensureOk(mData, mErr) as any[]
     const memberNames = mRows.map(m => (m.membro_nome ?? m.nome ?? '').trim()).filter(Boolean)
     const memberPhones = mRows.map(m => (m.id_membro ?? m.membro_phone ?? m.numero_whatsapp ?? '').toString().replace(/\D/g, '')).filter(Boolean)
+    const memberIds = mRows.map(m => String(m.id)).filter(Boolean)
     const isShared = r.type ? r.type === 'shared' : !!r.lista_compartilhada
     return {
       id: r.id_lista ?? r.id,
@@ -403,6 +406,7 @@ export const storage = {
       memberCount: r.quantidade_pessoas ?? r.memberCount ?? (memberNames.length || 1),
       memberNames,
       memberPhones,
+      memberIds,
       splitEnabled: r.split_enabled ?? r.splitEnabled ?? false,
       includeOwnerInSplit: r.include_owner_in_split ?? r.includeOwnerInSplit ?? false,
       allowMembersToInvite: r.allow_members_invite ?? r.allowMembersToInvite ?? false,
@@ -523,6 +527,7 @@ export const storage = {
       const mRows2 = ensureOk(mData2, mErr2) as any[]
       const memberNames2 = mRows2.map(m => (m.membro_nome ?? m.nome ?? '').trim()).filter(Boolean)
       const memberPhones2 = mRows2.map(m => (m.id_membro ?? m.membro_phone ?? m.numero_whatsapp ?? '').toString().replace(/\D/g, '')).filter(Boolean)
+      const memberIds2 = mRows2.map(m => String(m.id)).filter(Boolean)
       return {
         id: r.id_lista,
         name: r.nome_da_lista,
@@ -547,6 +552,7 @@ export const storage = {
               createdBy: undefined,
             })) as ListItem[]
           : [],
+        memberIds: memberIds2,
       }
     }
   },

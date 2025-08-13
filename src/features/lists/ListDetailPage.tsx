@@ -119,15 +119,16 @@ export function ListDetailPage(){
 
   async function handleRemoveMember(id: string) {
     const removed = members.find(m => m.id === id)
-    const next = members.filter(m => m.id !== id)
-    setMembers(next)
-    if (listData) {
-      const names = next.map(m => m.name)
-      const removedDigits = removed?.name ? removed.name.replace(/\D/g, '') : ''
-      const phones = (listData.memberPhones || []).filter(p => p !== removedDigits)
-      const updated = await storage.updateList(listData.id, { memberNames: names, memberPhones: phones, memberCount: names.length })
-      setListData(updated)
+    const listId = listData?.id || (new URL(window.location.href)).pathname.split('/').pop() || ''
+    // Resolver id da planilha membros_lista quando disponível
+    const memberListId = listData?.memberIds?.[Number(id)]
+    try {
+      await api.removeUserFromList({ id_lista: listId, membro_nome: removed?.name, membro_phone: removed?.name, owner_id: listData?.userId, member_id: memberListId })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Webhook remove user failed:', e)
     }
+    await loadListDetail()
   }
 
   async function handleAddItem(itemData: { itemId?: string; name: string; categoryId?: string; price?: number; qty?: number; unit?: string }) {
@@ -500,12 +501,10 @@ export function ListDetailPage(){
         memberCount={totals.participants || members.length}
         amountPerPerson={totals.porPessoa || 0}
         listName={listData?.name || 'Lista de Compras'}
-        members={members}
+        members={members.map(m => ({ id: m.id, name: m.name, phone: listData?.memberPhones?.[Number(m.id)] }))}
         onCharged={async ()=>{
-          if (!listData) return
-          const byMember = (listData.memberNames||members.map(m=>m.name)).map(name => ({ name, status: 'cobrado' as const }))
-          const updated = await storage.updateList(listData.id, { charges: { byMember } })
-          setListData(updated)
+          // Cobrança registrada pela webhook; apenas recarrega detalhes
+          await loadListDetail()
         }}
       />
 
@@ -529,7 +528,10 @@ export function ListDetailPage(){
         onClose={()=>setEditingListItem(null)}
         initial={editingListItem ? { id: editingListItem.id, name: editingListItem.name, quantity: editingListItem.qty||1, price: editingListItem.price||0, unit: editingListItem.unit as any } : null}
         onSave={async (patch)=>{ await storage.updateListItem(id!, patch.listItemId, { quantity: patch.quantity, price: patch.price, unit: patch.unit }); await loadListDetail() }}
-        onDelete={async (listItemId)=>{ await storage.deleteListItem(id!, listItemId); await loadListDetail() }}
+        onDelete={async (listItemId)=>{
+          await api.removerItemDaLista({ id_lista: id!, id_item_lista: listItemId, userId: user?.id })
+          await loadListDetail()
+        }}
       />
       <EditListSettingsModal isOpen={showEditList} onClose={()=>setShowEditList(false)} list={listData} onSaved={(u)=>{ setListData(u) }} />
 
