@@ -19,7 +19,7 @@
   --border: 220 13% 91%;           /* #E5E7EB - Border Color */
   --shadow: 220 13% 88%;           /* #D1D5DB - Shadow Color */
   /* Layout constants */
-  --tabbar-height: 64px;
+  --tabbar-height: 60px;
   --topbar-height: 64px;
 }
 
@@ -232,7 +232,7 @@ body {
 
 .tabbar .container {
   @apply flex w-full items-center justify-between;
-  padding: 4px 16px;
+  padding: 2px 16px;
 }
 
 /* Desktop responsiveness */
@@ -252,7 +252,7 @@ body {
 .tabbtn { 
   @apply flex-1 flex flex-col items-center justify-center;
   @apply transition-all duration-200 active:scale-95 touch-manipulation;
-  padding: 6px 6px 8px 6px;
+  padding: 4px 6px 6px 6px;
   min-height: 52px;
   color: hsl(var(--text-muted));
   gap: 4px;
