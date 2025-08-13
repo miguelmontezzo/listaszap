@@ -556,6 +556,58 @@ html {
   background-color: hsl(var(--card)) !important;
 }
 
+/* Ajuste de backgrounds muito claros para tons escuros mantendo a cor (dark) */
+:root[data-theme="dark"] .bg-blue-50 { background-color: rgba(59, 130, 246, 0.12) !important; }
+:root[data-theme="dark"] .bg-orange-50 { background-color: rgba(251, 146, 60, 0.12) !important; }
+:root[data-theme="dark"] .bg-green-50 { background-color: rgba(34, 197, 94, 0.12) !important; }
+:root[data-theme="dark"] .bg-red-50 { background-color: rgba(239, 68, 68, 0.12) !important; }
+
+/* Texto dentro de caixas coloridas no dark vira branco para legibilidade */
+:root[data-theme="dark"] .bg-green-50 *,
+:root[data-theme="dark"] .bg-blue-50 *,
+:root[data-theme="dark"] .bg-orange-50 * {
+  color: #fff !important;
+}
+
+/* Estados de aba ativa em contas (vermelho/verde) no dark: título branco para contraste */
+:root[data-theme="dark"] .border-red-500.bg-red-50,
+:root[data-theme="dark"] .border-red-500.bg-red-50 *,
+:root[data-theme="dark"] .border-green-500.bg-green-50,
+:root[data-theme="dark"] .border-green-500.bg-green-50 * { color: #fff !important; }
+
+/* Transparência de branco em dark vira transparência do card */
+:root[data-theme="dark"] .bg-white\/70 { background-color: hsl(var(--card) / 0.7) !important; }
+
+/* Inputs e selects no dark ficam com fundo card e texto do tema */
+:root[data-theme="dark"] input[type="text"],
+:root[data-theme="dark"] input[type="number"],
+:root[data-theme="dark"] input[type="email"],
+:root[data-theme="dark"] input[type="tel"],
+:root[data-theme="dark"] input[type="search"],
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background-color: hsl(var(--card));
+  color: hsl(var(--text));
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: hsl(var(--text-muted));
+}
+
+/* Botão secundário (Cancelar, etc.) em tema escuro */
+:root[data-theme="dark"] .btn-secondary {
+  color: hsl(var(--text-secondary));
+  background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.9) 100%);
+  border-color: hsl(var(--border));
+}
+
+:root[data-theme="dark"] .btn-secondary:hover {
+  color: hsl(var(--text));
+  background: linear-gradient(145deg, hsl(var(--card) / 0.95) 0%, hsl(var(--card) / 0.85) 100%);
+  border-color: hsl(var(--border));
+}
+
 .modal-scroll::-webkit-scrollbar {
   width: 6px;
 }

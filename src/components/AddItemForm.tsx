@@ -339,7 +339,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
 
             {/* Resumo do Preço */}
             {((unitPriceText && unitPriceText.trim() !== '') || (selectedItem?.price != null)) && (
-              <div className="bg-green-50 p-3 rounded-xl border border-green-200 mb-4">
+            <div className="bg-green-50 p-3 rounded-xl border border-green-200 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-green-700">Preço Total</div>
                   <div className="font-bold text-lg text-green-700">

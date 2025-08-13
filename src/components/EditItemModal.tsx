@@ -182,7 +182,7 @@ export function EditItemModal({ isOpen, onClose, item, onSave, onDelete }: EditI
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="0,00"
-              className="w-full px-3 py-3 pl-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors"
+              className="w-full px-3 py-3 pl-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors bg-white"
             />
           </div>
         </div>

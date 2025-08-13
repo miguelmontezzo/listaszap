@@ -116,7 +116,7 @@ export function AccountsPage() {
         <p className="text-gray-600 text-sm mt-1">Acompanhe o que você tem a pagar e a receber das listas</p>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs ao estilo "Unidade/Peso" */}
       <div className="grid grid-cols-2 gap-2">
         <button
           className={`p-3 rounded-xl border-2 transition-all ${activeTab === 'pagar' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
