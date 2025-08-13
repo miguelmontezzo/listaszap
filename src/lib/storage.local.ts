@@ -170,6 +170,12 @@ export const storageLocal = {
   async getCategories(): Promise<Category[]> {
     return readJson<Category[]>(K.categories, [])
   },
+  async getCategoriesByIds(ids: string[]): Promise<Category[]> {
+    if (!Array.isArray(ids) || ids.length === 0) return []
+    const categories = readJson<Category[]>(K.categories, [])
+    const set = new Set(ids)
+    return categories.filter(c => set.has(c.id))
+  },
   async createCategory(data: { name: string; color: string }) {
     const categories = readJson<Category[]>(K.categories, [])
     const newCategory: Category = { id: Date.now().toString(), ...data }
@@ -192,6 +198,12 @@ export const storageLocal = {
   },
   async getItems(): Promise<Item[]> {
     return readJson<Item[]>(K.items, [])
+  },
+  async getItemsByIds(ids: string[]): Promise<Item[]> {
+    if (!Array.isArray(ids) || ids.length === 0) return []
+    const items = readJson<Item[]>(K.items, [])
+    const set = new Set(ids)
+    return items.filter(i => set.has(i.id))
   },
   async createItem(data: { name: string; categoryId: string; price?: number; defaultUnit?: 'unidade' | 'peso'; defaultQty?: number }) {
     const items = readJson<Item[]>(K.items, [])

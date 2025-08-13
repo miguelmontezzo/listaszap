@@ -4,6 +4,7 @@ import { storage, type Item as StorageItem, type Category as StorageCategory } f
 import { api } from '../lib/api'
 import { QuantityStepper } from './QuantityStepper'
 import { NewCategoryModal } from './NewCategoryModal'
+import { useToast } from './Toast'
 
 interface AddItemFormProps {
   onAddItem: (item: { itemId?: string; name: string; categoryId?: string; price?: number; qty?: number; unit?: string }) => void
@@ -36,6 +37,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
   })
   const [unitPriceText, setUnitPriceText] = useState('')
   const [savingUnitPrice, setSavingUnitPrice] = useState(false)
+  const { show } = useToast()
 
   async function handleSaveUnitPrice() {
     if (!selectedItem) return
@@ -125,7 +127,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     // Reset quantity data quando selecionar novo item
     setItemQuantityData({
       qty: '1',
-      unit: 'unidade'
+      unit: (item as any).defaultUnit || 'unidade'
     })
     // Preencher preço unitário com o valor do item (se houver)
     if (typeof item.price === 'number') {
@@ -211,10 +213,26 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
   }
 
   const handleCreateCategory = async (data: { name: string; color: string }) => {
-    const created = await storage.createCategory({ name: data.name, color: data.color })
-    setAllCategories(prev => [...prev, created])
-    setFormData(prev => ({ ...prev, category: created.id }))
-    setShowCategoryDropdown(false)
+    try {
+      // Log explícito para validar que o fluxo foi acionado
+      // eslint-disable-next-line no-console
+      console.info('[AddItemForm] Criando categoria via webhook...', data)
+      const created = await api.criarCategoria({ name: data.name, color: data.color })
+      // eslint-disable-next-line no-console
+      console.info('[AddItemForm] Categoria criada via webhook', created)
+      setAllCategories(prev => [...prev, { id: created.id, name: created.name, color: created.color } as StorageCategory])
+      setFormData(prev => ({ ...prev, category: created.id }))
+      setShowCategoryDropdown(false)
+      if (created?.message) {
+        show(created.message)
+      } else {
+        show(`Categoria "${created.name}" criada com sucesso!`)
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[AddItemForm] Erro ao criar categoria via webhook', e)
+      alert('Erro ao criar categoria')
+    }
   }
 
   const expanded = compact ? true : isExpanded

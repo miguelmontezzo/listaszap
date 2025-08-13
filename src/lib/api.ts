@@ -33,6 +33,12 @@ const REMOVE_USER_LIST_WEBHOOK = DEV
 const UPDATE_LIST_ITEM_WEBHOOK = DEV
   ? '/n8n/webhook/updateitemlist'
   : (import.meta.env.VITE_N8N_UPDATE_LIST_ITEM_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/updateitemlist')
+const CREATE_CATEGORY_WEBHOOK = DEV
+  ? '/n8n/webhook/criarcategoria'
+  : (import.meta.env.VITE_N8N_CREATE_CATEGORY_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/criarcategoria')
+const EDIT_CATEGORY_WEBHOOK = DEV
+  ? '/n8n/webhook/editarcategoria'
+  : (import.meta.env.VITE_N8N_EDIT_CATEGORY_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/editarcategoria')
 const HEADERS = { 'Content-Type': 'application/json' }
 
 async function post<T = any>(path: string, body: any): Promise<T> {
@@ -279,6 +285,96 @@ export const api = {
       throw new Error(msg)
     }
     return { success: true, message: body?.message }
+  },
+  criarCategoria: async (payload: { name: string; color: string }): Promise<{ id: string; name: string; color: string; message?: string }> => {
+    const url = CREATE_CATEGORY_WEBHOOK
+    // Captura o userId da sessão local (mesma abordagem usada em outras webhooks)
+    const userId = (() => {
+      try { return JSON.parse(localStorage.getItem('lz_session') || '{}')?.user?.id } catch { return undefined }
+    })()
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[Webhook] criar categoria via', url, { ...payload, userId })
+    }
+    // Enviar com sinônimos para maior compatibilidade
+    const finalPayload: any = {
+      ...payload,
+      nome: payload.name,
+      cor: payload.color,
+      color: payload.color,
+      name: payload.name,
+      // Usuário
+      userId,
+      user_id: userId,
+      created_by_id: userId,
+      ownerId: userId,
+      id_usuario: userId,
+      usuarioId: userId,
+      idUsuario: userId,
+      timestamp: new Date().toISOString(),
+    }
+    const isProxied = url.startsWith('/n8n/')
+    const r = await fetch(url, {
+      method: 'POST',
+      ...(isProxied ? {} : { mode: 'cors', credentials: 'omit' }),
+      headers: HEADERS,
+      body: JSON.stringify(finalPayload),
+    })
+    const text = await r.text()
+    let body: any = null
+    try { body = text ? JSON.parse(text) : null } catch { body = text }
+    if (Array.isArray(body) && body.length > 0) body = body[0]
+    if (typeof body?.response === 'string') { try { body = JSON.parse(body.response) } catch {} }
+    if (!r.ok) {
+      const msg = (typeof body === 'string' ? body : (body?.message || body?.error || JSON.stringify(body))) || `HTTP ${r.status}`
+      throw new Error(msg)
+    }
+    // Normalizar saída
+    const id = body?.id || body?.categoryId || body?.categoriaId || body?.categoria?.id || body?.data?.id
+    const name = body?.name || body?.nome || body?.categoria?.name || payload.name
+    const color = body?.color || body?.cor || body?.categoria?.color || payload.color
+    const message = body?.message || body?.resposta || body?.categoria?.message || body?.data?.message
+    return { id: String(id || ''), name, color, message }
+  },
+
+  editarCategoria: async (payload: { id: string; name?: string; color?: string; action: 'salvar' | 'excluir' }): Promise<{ success: boolean; message?: string; body?: any }> => {
+    const url = EDIT_CATEGORY_WEBHOOK
+    const userId = (() => { try { return JSON.parse(localStorage.getItem('lz_session') || '{}')?.user?.id } catch { return undefined } })()
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[Webhook] editar categoria via', url, { ...payload, userId })
+    }
+    const finalPayload: any = {
+      ...payload,
+      id_categoria: payload.id,
+      categoryId: payload.id,
+      categoriaId: payload.id,
+      nome: payload.name,
+      name: payload.name,
+      cor: payload.color,
+      color: payload.color,
+      acao: payload.action,
+      action: payload.action,
+      botao: payload.action, // tag de botão solicitada
+      userId,
+      user_id: userId,
+      created_by_id: userId,
+      id_usuario: userId,
+      timestamp: new Date().toISOString(),
+    }
+    const isProxied = url.startsWith('/n8n/')
+    const r = await fetch(url, { method: 'POST', ...(isProxied ? {} : { mode: 'cors', credentials: 'omit' }), headers: HEADERS, body: JSON.stringify(finalPayload) })
+    const text = await r.text()
+    let body: any = null
+    try { body = text ? JSON.parse(text) : null } catch { body = text }
+    if (Array.isArray(body) && body.length > 0) body = body[0]
+    if (typeof body?.response === 'string') { try { body = JSON.parse(body.response) } catch {} }
+    if (!r.ok) {
+      const msg = (typeof body === 'string' ? body : (body?.message || body?.error || JSON.stringify(body))) || `HTTP ${r.status}`
+      throw new Error(msg)
+    }
+    const message = body?.message || body?.resposta
+    return { success: true, message, body }
   },
 
   addUserToList: async (payload: {

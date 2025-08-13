@@ -1,6 +1,6 @@
 
 import { Outlet, NavLink } from 'react-router-dom'
-import { ListChecks, PackageOpen, FolderTree, UserRound, Users } from 'lucide-react'
+import { ListChecks, PackageOpen, FolderTree, UserRound, Users, BarChart3 } from 'lucide-react'
 import { DollarSign } from 'lucide-react'
 import { ToastContainer } from '../components/Toast'
 
@@ -92,6 +92,22 @@ export function Layout() {
                 </div>
                 <span className={`label ${isActive ? 'text-green-600' : 'text-gray-500'}`}>
                   Contatos
+                </span>
+              </div>
+            )}
+          </NavLink>
+          <NavLink to="/resumo">
+            {({isActive}) => (
+              <div className="tabbtn">
+                <div className={`icon-container ${
+                  isActive 
+                    ? 'bg-green-600 text-white shadow-lg shadow-green-600/25' 
+                    : 'text-gray-500'
+                }`}>
+                  <BarChart3 size={20} strokeWidth={2} />
+                </div>
+                <span className={`label ${isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                  Resumo
                 </span>
               </div>
             )}

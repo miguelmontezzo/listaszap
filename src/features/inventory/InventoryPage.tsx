@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { storage, type Item as StorageItem, type Category as StorageCategory } from '../../lib/storage'
 import { AddItemForm } from '../../components/AddItemForm'
+import { api } from '../../lib/api'
 import { NewCategoryModal } from '../../components/NewCategoryModal'
 import { EditCategoryModal } from '../../components/EditCategoryModal'
 import { EditItemModal } from '../../components/EditItemModal'
@@ -199,14 +200,50 @@ export function InventoryPage() {
       )}
 
       {/* Modais */}
-      <NewCategoryModal isOpen={showNewCat} onClose={() => setShowNewCat(false)} onCreate={async (data) => { await storage.createCategory(data); await loadAll(); setShowNewCat(false); show('Categoria criada!') }} existingNames={categories.map(c=>c.name)} />
+      <NewCategoryModal isOpen={showNewCat} onClose={() => setShowNewCat(false)} onCreate={async (data) => { 
+        try {
+          // eslint-disable-next-line no-console
+          console.info('[InventoryPage] Criando categoria via webhook...', data)
+          const created = await api.criarCategoria({ name: data.name, color: data.color })
+          await loadAll(); setShowNewCat(false)
+          if (created?.message) {
+            show(created.message)
+          } else {
+            show(`Categoria "${created.name}" criada com sucesso!`)
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('[InventoryPage] Erro ao criar categoria via webhook', e)
+          alert('Erro ao criar categoria')
+        }
+      }} existingNames={categories.map(c=>c.name)} />
       <EditCategoryModal
         isOpen={!!editingCat}
         onClose={() => setEditingCat(null)}
         initial={editingCat}
         existingNames={categories.map(c=>c.name)}
-        onSave={async (d)=>{ await storage.updateCategory(d.id, { name: d.name, color: d.color }); await loadAll(); show('Categoria atualizada') }}
-        onDelete={async (id)=>{ await storage.deleteCategory(id); await loadAll(); setEditingCat(null); show('Categoria excluída') }}
+        onSave={async (d)=>{ 
+          try {
+            await api.editarCategoria({ id: d.id, name: d.name, color: d.color, action: 'salvar' })
+            await loadAll();
+            show('categoria atualizada')
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[InventoryPage] Erro ao salvar categoria via webhook', e)
+            alert('Erro ao atualizar categoria')
+          }
+        }}
+        onDelete={async (id)=>{ 
+          try {
+            await api.editarCategoria({ id, action: 'excluir' })
+            await loadAll(); setEditingCat(null)
+            show('categoria excluída')
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[InventoryPage] Erro ao excluir categoria via webhook', e)
+            alert('Erro ao excluir categoria')
+          }
+        }}
       />
       <EditItemModal isOpen={!!editingItem} onClose={()=>setEditingItem(null)} item={editingItem} onSave={async (p)=>{ await storage.updateItem(p.id, { name: p.name, categoryId: p.categoryId, price: p.price, defaultUnit: p.defaultUnit, defaultQty: p.defaultQty }); await loadAll(); show('Item atualizado') }} onDelete={async (id)=>{ setConfirmDelete({ open: true, id }) }} />
       <ConfirmDialog isOpen={confirmDelete.open} title="Excluir" description="Tem certeza que deseja excluir? Esta ação não pode ser desfeita." confirmLabel="Excluir" onCancel={()=>setConfirmDelete({ open: false })} onConfirm={async ()=>{ if (confirmDelete.id) { // tenta excluir item, senão categoria

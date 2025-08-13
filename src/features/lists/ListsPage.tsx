@@ -15,6 +15,7 @@ export function ListsPage(){
   const [lists, setLists] = useState<L[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewListModal, setShowNewListModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'open' | 'done'>('open')
   const nav = useNavigate()
   const { user } = useSession()
   const { show } = useToast()
@@ -125,6 +126,10 @@ export function ListsPage(){
 
   // removido: createDemoMemberList (botão de demo)
 
+  const openLists = lists.filter(l => (l.progress ?? 0) < 100)
+  const doneLists = lists.filter(l => (l.progress ?? 0) >= 100)
+  const displayed = activeTab === 'open' ? openLists : doneLists
+
   return (
     <div className="pt-4 space-y-4">
       <div>
@@ -163,9 +168,32 @@ export function ListsPage(){
         </div>
       ) : (
         <div className="space-y-3">
-          {lists.map(l => (
-            <ListCard key={l.id} name={l.name} progress={l.progress} total={l.total} real={l.real} onClick={()=>nav(`/listas/${l.id}`)} />
-          ))}
+          <div className="bg-white border border-gray-200 rounded-xl p-1 flex shadow-sm">
+            <button
+              type="button"
+              className={`flex-1 py-2 rounded-md text-sm transition ${activeTab === 'open' ? 'bg-green-600 text-white font-semibold shadow' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'}`}
+              onClick={() => setActiveTab('open')}
+            >
+              Em aberto ({openLists.length})
+            </button>
+            <button
+              type="button"
+              className={`flex-1 py-2 rounded-md text-sm transition ${activeTab === 'done' ? 'bg-green-600 text-white font-semibold shadow' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'}`}
+              onClick={() => setActiveTab('done')}
+            >
+              Concluídas ({doneLists.length})
+            </button>
+          </div>
+
+          {displayed.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {activeTab === 'open' ? 'Nenhuma lista em aberto' : 'Nenhuma lista concluída'}
+            </div>
+          ) : (
+            displayed.map(l => (
+              <ListCard key={l.id} name={l.name} progress={l.progress} total={l.total} real={l.real} onClick={()=>nav(`/listas/${l.id}`)} />
+            ))
+          )}
         </div>
       )}
 

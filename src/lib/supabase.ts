@@ -9,10 +9,7 @@ if (import.meta.env.DEV) {
 }
 export const supabase = url && key ? createClient(url, key, { auth: { persistSession: false } }) : ({} as any)
 
-/**
- * Busca informações do usuário no Supabase pelo ID (número canônico do WhatsApp, ex: 55DDDNNNNNNNN)
- * Tabela padrão: "users". Pode ser customizada via VITE_SUPABASE_USERS_TABLE.
- */
+
 export async function fetchUserInfoById(userId: string): Promise<{ data: any | null; error: any | null }>{
   if (!url || !key) return { data: null, error: null }
   const table = (import.meta.env.VITE_SUPABASE_USERS_TABLE as string) || 'users'

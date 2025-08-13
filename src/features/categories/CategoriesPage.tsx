@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { storage } from '../../lib/storage'
+import { api } from '../../lib/api'
 import { NewCategoryModal } from '../../components/NewCategoryModal'
 import { EditCategoryModal } from '../../components/EditCategoryModal'
 import { useToast } from '../../components/Toast'
@@ -31,20 +32,28 @@ export function CategoriesPage(){
 
   async function handleCreateCategory(data: { name: string; color: string }) {
     try {
-      await storage.createCategory(data)
+      // eslint-disable-next-line no-console
+      console.info('[CategoriesPage] Criando categoria via webhook...', data)
+      const created = await api.criarCategoria({ name: data.name, color: data.color })
       await loadCategories()
       setShowNew(false)
-      show('Categoria criada!')
+      if (created?.message) {
+        show(created.message)
+      } else {
+        show(`Categoria "${created.name}" criada com sucesso!`)
+      }
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[CategoriesPage] Erro ao criar categoria via webhook', e)
       alert('Erro ao criar categoria')
     }
   }
 
   async function handleUpdateCategory(id: string, patch: { name?: string; color?: string }) {
     try {
-      await storage.updateCategory(id, patch)
+      await api.editarCategoria({ id, name: patch.name, color: patch.color, action: 'salvar' })
       await loadCategories()
-      show('Categoria atualizada')
+      show('categoria atualizada')
     } catch (e) {
       alert('Erro ao atualizar categoria')
     }
@@ -53,9 +62,9 @@ export function CategoriesPage(){
   async function handleDeleteCategory(id: string) {
     try {
       if (confirm('Excluir esta categoria?')) {
-        await storage.deleteCategory(id)
+        await api.editarCategoria({ id, action: 'excluir' })
         await loadCategories()
-        show('Categoria excluída')
+        show('categoria excluída')
       }
     } catch (e) {
       alert('Erro ao excluir categoria')
@@ -113,15 +122,15 @@ export function CategoriesPage(){
         initial={editing}
         existingNames={cats.map(c => c.name)}
         onSave={async (data) => {
-          await storage.updateCategory(data.id, { name: data.name, color: data.color })
+          await api.editarCategoria({ id: data.id, name: data.name, color: data.color, action: 'salvar' })
           await loadCategories()
-          show('Categoria atualizada')
+          show('categoria atualizada')
         }}
         onDelete={async (id) => {
           if (confirm('Excluir esta categoria?')) {
-            await storage.deleteCategory(id)
+            await api.editarCategoria({ id, action: 'excluir' })
             await loadCategories()
-            show('Categoria excluída')
+            show('categoria ecluida')
           }
         }}
       />

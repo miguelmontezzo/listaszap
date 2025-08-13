@@ -136,6 +136,13 @@ export function PixChargeModal({
     setSelectedKeyType('cpf')
   }
 
+  const formattedKeyForMessage = ((): string => {
+    if (selectedKeyType === 'cpf' || selectedKeyType === 'cnpj' || selectedKeyType === 'phone') {
+      return (pixKey || '').replace(/\D/g, '')
+    }
+    return pixKey
+  })()
+
   return (
     <>
     <Modal isOpen={isOpen} onClose={onClose} title="Cobrar Membros">
@@ -242,7 +249,7 @@ export function PixChargeModal({
                 </label>
                 <div className="card bg-gray-50 border-gray-200 max-h-32 overflow-y-auto">
                   <div className="text-sm text-gray-700 whitespace-pre-line font-mono">
-                    {`🛒 ${listName}\n\n💰 Sua parte: R$ ${amountPerPerson.toFixed(2)}\n👥 Total dividido entre ${memberCount} pessoas\n\n📋 PIX para pagamento:\n${pixKey}\n\n✅ Após o pagamento, confirme no grupo!\n\n_Enviado pelo ListasZap 📱_`}
+                    {`🛒 ${listName || 'Churrasco fds'}\n\n💰 Sua parte: R$ ${amountPerPerson.toFixed(2)}\n👥 Total dividido entre: ${memberCount} pessoas\n\n📋 PIX para pagamento\nTipo: ${selectedType?.name || ''}\nChave: ${formattedKeyForMessage}\n\n✅ Após o pagamento, confirme no app ou envie: "Paguei!"`}
                   </div>
                 </div>
               </div>

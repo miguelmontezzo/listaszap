@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useToast } from '../../components/Toast'
 import { ChevronDown, PenLine } from 'lucide-react'
 import { EditCategoryModal } from '../../components/EditCategoryModal'
+import { api } from '../../lib/api'
 
 type Item = {
   id: string
@@ -258,12 +259,22 @@ export function ItemsPage(){
         initial={editingCategory}
         existingNames={categories.map(c => c.name)}
         onSave={async ({ id, name, color }) => {
-          await storage.updateCategory(id, { name, color })
-          await loadItems()
+          try {
+            await api.editarCategoria({ id, name, color, action: 'salvar' })
+            await loadItems()
+            show('categoria atualizada')
+          } catch (e) {
+            alert('Erro ao atualizar categoria')
+          }
         }}
         onDelete={async (id: string) => {
-          await storage.deleteCategory(id)
-          await loadItems()
+          try {
+            await api.editarCategoria({ id, action: 'excluir' })
+            await loadItems()
+            show('categoria excluída')
+          } catch (e) {
+            alert('Erro ao excluir categoria')
+          }
         }}
       />
       <EditItemModal
