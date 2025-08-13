@@ -7,48 +7,32 @@ import { ToastContainer } from '../components/Toast'
 
 export function Layout() {
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system')
-  const isDark = (() => {
-    if (theme === 'light') return false
-    if (theme === 'dark') return true
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  })()
+  const [prefersDark, setPrefersDark] = useState<boolean>(false)
+  const effectiveTheme: 'light' | 'dark' = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
+  const isDark = effectiveTheme === 'dark'
 
+  // Inicializa preferências do SO e reage a mudanças
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    setPrefersDark(mq.matches)
+    const handle = (e: MediaQueryListEvent) => setPrefersDark(e.matches)
+    mq.addEventListener?.('change', handle)
+    return () => mq.removeEventListener?.('change', handle)
+  }, [])
+
+  // Carrega o tema salvo e aplica sempre o tema efetivo (inclusive no modo sistema)
   useEffect(() => {
     const stored = localStorage.getItem('lz_theme') as 'system' | 'light' | 'dark' | null
     if (stored) setTheme(stored)
+  }, [])
 
-    const apply = () => {
-      const root = document.documentElement
-      if (theme === 'system') {
-        root.removeAttribute('data-theme')
-      } else {
-        root.setAttribute('data-theme', theme)
-      }
-      // Atualiza a theme-color para status bar no PWA
-      const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
-      if (meta) {
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-        const effectiveDark = theme === 'dark' || (theme === 'system' && prefersDark)
-        meta.setAttribute('content', effectiveDark ? '#0b0f14' : '#f5f6fa')
-      }
-    }
-    apply()
-
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handle = () => {
-      if (theme === 'system') {
-        const root = document.documentElement
-        root.removeAttribute('data-theme')
-        const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
-        if (meta) {
-          const prefersDarkNow = mq.matches
-          meta.setAttribute('content', prefersDarkNow ? '#0b0f14' : '#f5f6fa')
-        }
-      }
-    }
-    mq.addEventListener?.('change', handle)
-    return () => mq.removeEventListener?.('change', handle)
-  }, [theme])
+  // Aplica o tema efetivo e a theme-color sempre que tema ou preferência do SO mudarem
+  useEffect(() => {
+    const root = document.documentElement
+    root.setAttribute('data-theme', effectiveTheme)
+    const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+    if (meta) meta.setAttribute('content', isDark ? '#0b0f14' : '#f5f6fa')
+  }, [effectiveTheme, isDark])
 
   function toggleTheme() {
     // alterna entre system -> dark -> light -> system

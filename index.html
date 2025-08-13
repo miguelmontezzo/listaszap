@@ -11,10 +11,11 @@
         try {
           var stored = localStorage.getItem('lz_theme');
           var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var theme = stored || 'system';
-          if (theme !== 'system') document.documentElement.setAttribute('data-theme', theme);
+          // Aplica sempre o tema efetivo (system resolve para light/dark), para não divergir da chavinha
+          var effective = (stored === 'dark') || (stored !== 'light' && prefersDark) ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', effective);
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', (theme==='dark' || (theme==='system' && prefersDark)) ? '#0b0f14' : '#f5f6fa');
+          if (meta) meta.setAttribute('content', effective === 'dark' ? '#0b0f14' : '#f5f6fa');
         } catch (e) {}
       })();
     </script>
