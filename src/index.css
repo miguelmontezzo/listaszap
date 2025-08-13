@@ -19,7 +19,7 @@
   --border: 220 13% 91%;           /* #E5E7EB - Border Color */
   --shadow: 220 13% 88%;           /* #D1D5DB - Shadow Color */
   /* Layout constants */
-  --tabbar-height: 60px;
+  --tabbar-height: 64px;
   --topbar-height: 64px;
 }
 
@@ -279,8 +279,8 @@ body {
   @apply px-4;
   width: 100%;
   max-width: 100vw;
-  /* Padding inferior alinhado à altura real da tabbar + uma folga */
-  padding-bottom: calc(var(--tabbar-height) + 16px + env(safe-area-inset-bottom));
+  /* Padding inferior alinhado à altura real da tabbar + folga reduzida */
+  padding-bottom: calc(var(--tabbar-height) + 11px + env(safe-area-inset-bottom));
   /* Padding superior para compensar a topbar fixa + safe area */
   padding-top: calc(var(--topbar-height) + env(safe-area-inset-top));
   /* Altura mínima descontando topbar e tabbar */

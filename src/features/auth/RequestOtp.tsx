@@ -79,7 +79,7 @@ export function RequestOtp(){
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4 overflow-hidden">
         <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-4">
           <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl">

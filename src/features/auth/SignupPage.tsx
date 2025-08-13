@@ -36,7 +36,7 @@ export function SignupPage(){
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4 overflow-hidden">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-1">
           <h1 className="text-3xl font-bold text-gray-900">Crie sua conta grátis</h1>
