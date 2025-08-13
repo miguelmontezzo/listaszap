@@ -7,6 +7,7 @@ import { EditItemModal } from '../../components/EditItemModal'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useToast } from '../../components/Toast'
 import { ChevronDown } from 'lucide-react'
+import { SearchInput } from '../../components/SearchInput'
 
 type Item = StorageItem & { categoryName?: string }
 
@@ -21,6 +22,7 @@ export function InventoryPage() {
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id?: string }>({ open: false })
   const { show } = useToast()
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     loadAll()
@@ -37,6 +39,14 @@ export function InventoryPage() {
     }
   }
 
+  const filteredItems = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return items
+    return items.filter(i =>
+      i.name.toLowerCase().includes(q) || (i.categoryName || '').toLowerCase().includes(q)
+    )
+  }, [items, search])
+
   const groups = useMemo(() => {
     const map = new Map<string, { id: string; name: string; color?: string; items: Item[] }>()
     // Build groups from categories first for stable order
@@ -45,13 +55,25 @@ export function InventoryPage() {
     }
     // No category group
     map.set('no-cat', { id: 'no-cat', name: 'Sem categoria', color: undefined, items: [] })
-    for (const it of items) {
+    for (const it of filteredItems) {
       const key = it.categoryId || 'no-cat'
       if (!map.has(key)) map.set(key, { id: key, name: it.categoryName || 'Sem categoria', items: [] })
       map.get(key)!.items.push(it)
     }
-    return Array.from(map.values()).filter(g => g.items.length > 0 || g.id !== 'no-cat')
-  }, [items, categories])
+    const arr = Array.from(map.values())
+    return search
+      ? arr.filter(g => g.items.length > 0)
+      : arr.filter(g => g.items.length > 0 || g.id !== 'no-cat')
+  }, [filteredItems, categories, search])
+
+  // Ao buscar, expandir automaticamente os grupos com resultados
+  useEffect(() => {
+    if (search) {
+      const next: Record<string, boolean> = {}
+      for (const g of groups) next[g.id] = true
+      setOpenGroups(prev => ({ ...prev, ...next }))
+    }
+  }, [search, groups])
 
   function toggleGroup(id: string) {
     setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }))
@@ -64,6 +86,19 @@ export function InventoryPage() {
         <div>
           <div className="text-base font-semibold text-gray-900">Catálogo</div>
           <div className="text-xs text-gray-500">Crie categorias e organize seus itens</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar item ou categoria..." />
+          </div>
+          {search && (
+            <button
+              className="px-3 py-2 text-sm rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+              onClick={() => setSearch('')}
+            >
+              Limpar
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -115,7 +150,7 @@ export function InventoryPage() {
       {loading ? (
         <div className="text-center py-8 text-neutral-500">Carregando...</div>
       ) : groups.length === 0 ? (
-        <div className="text-center py-12 text-neutral-500">Nenhum item cadastrado</div>
+        <div className="text-center py-12 text-neutral-500">{search ? 'Nenhum resultado encontrado' : 'Nenhum item cadastrado'}</div>
       ) : (
         <div className="space-y-3">
           {groups.map(g => {

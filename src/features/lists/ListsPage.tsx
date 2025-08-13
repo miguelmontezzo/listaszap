@@ -21,23 +21,55 @@ export function ListsPage(){
 
   useEffect(()=>{
     loadLists()
+    const onFocus = () => { loadLists() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
   },[])
 
   async function loadLists() {
     try {
-      const data = await storage.getLists()
+      const [data, allItems] = await Promise.all([
+        storage.getLists(),
+        storage.getItems(),
+      ])
       // Agora o storage já retorna: listas criadas + listas em que sou membro.
       // Não filtramos mais por nomes/telefones, para não esconder listas quando faltarem permissões de leitura dos membros.
       const visible = data
-      // Calcular estatísticas das listas
+      // Pending overrides vindos da tela de detalhe (persistidos enquanto Supabase propaga)
+      const key = 'lz_pending_item_prices'
+      let pending: Record<string, { price: number; ts: number; listId?: string }> = {}
+      try { pending = JSON.parse(localStorage.getItem(key) || '{}') } catch {}
+      const now = Date.now()
+      // Limpar expirados (TTL 2 minutos)
+      const cleaned: typeof pending = {}
+      for (const [k, v] of Object.entries(pending)) {
+        if (v && (now - v.ts) < 2 * 60 * 1000) cleaned[k] = v
+      }
+      if (Object.keys(cleaned).length !== Object.keys(pending).length) {
+        try { localStorage.setItem(key, JSON.stringify(cleaned)) } catch {}
+      }
+
+      // Calcular estatísticas das listas aplicando overrides pendentes
+      const itemById = new Map(allItems.map(i => [i.id, i]))
       const listsWithStats = visible.map(list => {
+        const itemsWithOverride = list.items.map(it => {
+          const p = cleaned[it.id]
+          const info = itemById.get(it.itemId)
+          const resolvedPrice = (info?.price ?? it.price ?? 0)
+          const price = p && (!p.listId || p.listId === list.id) ? p.price : resolvedPrice
+          return { ...it, price }
+        })
         const checkedItems = list.items.filter(item => item.checked).length
         const totalItems = list.items.length
         const progress = totalItems > 0 ? (checkedItems / totalItems) * 100 : 0
-        const totalValue = list.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-        const realValue = list.items
+        const totalValue = itemsWithOverride.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0)
+        const realValue = itemsWithOverride
           .filter(item => item.checked)
-          .reduce((sum, item) => sum + (item.price * item.quantity), 0)
+          .reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0)
         
         return {
           id: list.id,

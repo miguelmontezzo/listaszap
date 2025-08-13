@@ -18,6 +18,9 @@ const ADD_USER_LIST_WEBHOOK = DEV
 const DELETE_OR_LEAVE_LIST_WEBHOOK = DEV
   ? '/n8n/webhook/escluirlista'
   : (import.meta.env.VITE_N8N_DELETE_OR_LEAVE_LIST_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/escluirlista')
+const UPDATE_VALOR_WEBHOOK = DEV
+  ? '/n8n/webhook/updatevalor'
+  : (import.meta.env.VITE_N8N_UPDATE_VALOR_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/updatevalor')
 const COBRAR_CONTA_WEBHOOK = DEV
   ? '/n8n/webhook/cobrarconta'
   : (import.meta.env.VITE_N8N_COBRAR_CONTA_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/cobrarconta')
@@ -27,6 +30,9 @@ const REMOVE_LIST_ITEM_WEBHOOK = DEV
 const REMOVE_USER_LIST_WEBHOOK = DEV
   ? '/n8n/webhook/removeuserlist'
   : (import.meta.env.VITE_N8N_REMOVE_USER_LIST_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/removeuserlist')
+const UPDATE_LIST_ITEM_WEBHOOK = DEV
+  ? '/n8n/webhook/updateitemlist'
+  : (import.meta.env.VITE_N8N_UPDATE_LIST_ITEM_WEBHOOK || 'https://zzotech-n8n.lgctvv.easypanel.host/webhook/updateitemlist')
 const HEADERS = { 'Content-Type': 'application/json' }
 
 async function post<T = any>(path: string, body: any): Promise<T> {
@@ -313,6 +319,44 @@ export const api = {
     }
     return { success: true, message: body?.message }
   },
+  
+  atualizarValorItem: async (payload: { id_item: string; preco_unitario: number; nome?: string; id_lista?: string }): Promise<{ success: boolean; message?: string } > => {
+    const url = UPDATE_VALOR_WEBHOOK
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[Webhook] atualizar valor via', url, payload)
+    }
+    const finalPayload: any = {
+      ...payload,
+      itemId: payload.id_item,
+      id: payload.id_item,
+      price: payload.preco_unitario,
+      preco: payload.preco_unitario,
+      preco_unitario: payload.preco_unitario,
+      id_lista: payload.id_lista,
+      listId: payload.id_lista,
+      nome: payload.nome,
+      name: payload.nome,
+      timestamp: new Date().toISOString(),
+    }
+    const isProxied = url.startsWith('/n8n/')
+    const r = await fetch(url, {
+      method: 'POST',
+      ...(isProxied ? {} : { mode: 'cors', credentials: 'omit' }),
+      headers: HEADERS,
+      body: JSON.stringify(finalPayload),
+    })
+    const text = await r.text()
+    let body: any = null
+    try { body = text ? JSON.parse(text) : null } catch { body = text }
+    if (Array.isArray(body) && body.length > 0) body = body[0]
+    if (typeof body?.response === 'string') { try { body = JSON.parse(body.response) } catch {} }
+    if (!r.ok) {
+      const msg = (typeof body === 'string' ? body : (body?.message || body?.error || JSON.stringify(body))) || `HTTP ${r.status}`
+      throw new Error(msg)
+    }
+    return { success: true, message: body?.message }
+  },
 
   removeUserFromList: async (payload: {
     id_lista: string
@@ -471,6 +515,55 @@ export const api = {
       throw new Error(msg)
     }
     return { success: true, message: body?.message }
+  },
+
+  atualizarItemDaLista: async (payload: {
+    id_lista: string
+    id_item_lista: string
+    quantidade?: number
+    preco_unitario?: number
+    unidade?: string
+    userId?: string
+  }): Promise<{ success: boolean; body?: any; message?: string }> => {
+    const url = UPDATE_LIST_ITEM_WEBHOOK
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[Webhook] atualizar item da lista via', url, payload)
+    }
+    const finalPayload: any = {
+      ...payload,
+      // IDs e sinônimos
+      id: payload.id_item_lista,
+      listId: payload.id_lista,
+      id_lista: payload.id_lista,
+      listItemId: payload.id_item_lista,
+      id_item_lista: payload.id_item_lista,
+      // Quantidade e preço
+      quantity: payload.quantidade,
+      quantidade: payload.quantidade,
+      price: payload.preco_unitario,
+      preco: payload.preco_unitario,
+      preco_unitario: payload.preco_unitario,
+      unit: payload.unidade,
+      unidade: payload.unidade,
+      // Usuário
+      user_id: payload.userId,
+      created_by_id: payload.userId,
+      // Metadados
+      timestamp: new Date().toISOString(),
+    }
+    const isProxied = url.startsWith('/n8n/')
+    const r = await fetch(url, { method: 'POST', ...(isProxied ? {} : { mode: 'cors', credentials: 'omit' }), headers: HEADERS, body: JSON.stringify(finalPayload) })
+    const text = await r.text()
+    let body: any = null
+    try { body = text ? JSON.parse(text) : null } catch { body = text }
+    if (Array.isArray(body) && body.length > 0) body = body[0]
+    if (typeof body?.response === 'string') { try { body = JSON.parse(body.response) } catch {} }
+    if (!r.ok) {
+      const msg = (typeof body === 'string' ? body : (body?.message || body?.error || JSON.stringify(body))) || `HTTP ${r.status}`
+      throw new Error(msg)
+    }
+    return { success: true, body, message: body?.message }
   },
   verifyOtpZapLista: async (
     whatsapp: string,

@@ -65,6 +65,22 @@ export function QuantityStepper({ value, unit, onChange, className = '' }: Quant
     onChange(formatValue(normalized, unit))
   }
 
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    e.currentTarget.select()
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      increment()
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      decrement()
+    } else if (e.key === 'Enter') {
+      (e.currentTarget as HTMLInputElement).blur()
+    }
+  }
+
   return (
     <div className={`flex items-center justify-between border border-gray-300 rounded-xl px-2 py-2 ${className}`}>
       <button
@@ -75,18 +91,24 @@ export function QuantityStepper({ value, unit, onChange, className = '' }: Quant
       >
         −
       </button>
-      <div className="flex items-baseline gap-2">
-        <input
-          type="text"
-          inputMode={unit === 'peso' ? 'decimal' : 'numeric'}
-          value={String(value)}
-          onChange={handleInputChange}
-          onBlur={handleBlur}
-          className="w-20 text-center py-1 bg-transparent outline-none border-0 text-lg font-medium text-gray-900"
-          aria-label={unit === 'peso' ? 'Peso' : 'Quantidade'}
-          placeholder={unit === 'peso' ? '0.5' : '1'}
-        />
-        <span className="text-sm text-gray-500">{unit === 'peso' ? 'kg' : 'un'}</span>
+      <div className="flex items-center gap-2">
+        <div className="flex items-baseline gap-2 px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 focus-within:ring-2 focus-within:ring-green-500 focus-within:border-green-500">
+          <input
+            type="text"
+            inputMode={unit === 'peso' ? 'decimal' : 'numeric'}
+            pattern={unit === 'peso' ? "[0-9]*[.,]?[0-9]*" : "[0-9]*"}
+            value={String(value)}
+            onChange={handleInputChange}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            onKeyDown={handleKeyDown}
+            className="w-24 text-center bg-transparent outline-none border-0 text-lg font-medium text-gray-900"
+            aria-label={unit === 'peso' ? 'Peso' : 'Quantidade'}
+            title={unit === 'peso' ? 'Toque no número para digitar o peso' : 'Toque no número para digitar a quantidade'}
+            placeholder={unit === 'peso' ? '0.5' : '1'}
+          />
+          <span className="text-sm text-gray-500">{unit === 'peso' ? 'kg' : 'un'}</span>
+        </div>
       </div>
       <button
         type="button"

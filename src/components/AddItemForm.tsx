@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Plus, Package, ChevronDown, X, Search, Scale, Hash } from 'lucide-react'
+import { Plus, Package, ChevronDown, X, Search, Scale, Hash, RefreshCcw } from 'lucide-react'
 import { storage, type Item as StorageItem, type Category as StorageCategory } from '../lib/storage'
+import { api } from '../lib/api'
 import { QuantityStepper } from './QuantityStepper'
 import { NewCategoryModal } from './NewCategoryModal'
 
@@ -13,9 +14,10 @@ interface AddItemFormProps {
   createOnly?: boolean
   compact?: boolean
   itemsCount?: number
+  listId?: string
 }
 
-export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCreateMode = false, hideCollapsedButton = false, createOnly = false, compact = false, itemsCount = 0 }: AddItemFormProps) {
+export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCreateMode = false, hideCollapsedButton = false, createOnly = false, compact = false, itemsCount = 0, listId }: AddItemFormProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StorageItem | null>(null)
@@ -32,6 +34,28 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     qty: '1',
     unit: 'unidade'
   })
+  const [unitPriceText, setUnitPriceText] = useState('')
+  const [savingUnitPrice, setSavingUnitPrice] = useState(false)
+
+  async function handleSaveUnitPrice() {
+    if (!selectedItem) return
+    const parsed = unitPriceText ? parseFloat(unitPriceText.replace(',', '.')) : undefined
+    if (parsed == null || Number.isNaN(parsed)) return
+    try {
+      setSavingUnitPrice(true)
+      await api.atualizarValorItem({ id_item: selectedItem.id, preco_unitario: parsed, nome: selectedItem.name, id_lista: listId })
+      // Atualiza estados locais para refletir o novo preço
+      setAllItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, price: parsed } as StorageItem : i))
+      setSelectedItem(prev => prev ? ({ ...prev, price: parsed }) : prev)
+      // normaliza exibição
+      setUnitPriceText(parsed.toFixed(2).replace('.', ','))
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Falha ao atualizar valor do item via webhook:', e)
+    } finally {
+      setSavingUnitPrice(false)
+    }
+  }
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [isNewCategoryOpen, setIsNewCategoryOpen] = useState(false)
@@ -103,6 +127,13 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
       qty: '1',
       unit: 'unidade'
     })
+    // Preencher preço unitário com o valor do item (se houver)
+    if (typeof item.price === 'number') {
+      const str = Number(item.price).toFixed(2).replace('.', ',')
+      setUnitPriceText(str)
+    } else {
+      setUnitPriceText('')
+    }
   }
 
   const handleConfirmItemWithQuantity = () => {
@@ -110,9 +141,11 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
     
     const category = allCategories.find(c => c.id === selectedItem.categoryId)
     const quantity = itemQuantityData.unit === 'peso' ? parseFloat(itemQuantityData.qty) || 1 : parseInt(itemQuantityData.qty) || 1
-    
-    // Calcular preço baseado na quantidade (se o item tiver preço)
-    const itemPrice = selectedItem.price ? selectedItem.price * quantity : undefined
+    // Preço unitário (permite edição). Se vazio, usa o preço do item (quando existir)
+    const editedUnitPrice = unitPriceText ? parseFloat(unitPriceText.replace(',', '.')) : undefined
+    const unitPrice = (typeof editedUnitPrice === 'number' && !Number.isNaN(editedUnitPrice))
+      ? editedUnitPrice
+      : (typeof selectedItem.price === 'number' ? selectedItem.price : undefined)
     
     onAddItem({
       itemId: selectedItem.id,
@@ -120,7 +153,8 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
       categoryId: category?.id,
       qty: quantity,
       unit: itemQuantityData.unit,
-      price: itemPrice
+      // Enviar preço unitário (a tela de lista calcula total = price * qty)
+      price: unitPrice
     })
     resetForm()
   }
@@ -232,11 +266,7 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
                     return category?.name || 'Sem categoria'
                   })()}
                 </div>
-                {selectedItem?.price && (
-                  <div className="text-sm text-green-600 font-medium mt-1">
-                    R$ {selectedItem.price.toFixed(2)} por {itemQuantityData.unit === 'peso' ? 'kg' : 'unidade'}
-                  </div>
-                )}
+                {/* Campo de preço integrado será mostrado dentro do card "Preço Total" abaixo */}
               </div>
             </div>
 
@@ -290,16 +320,56 @@ export function AddItemForm({ onAddItem, isExpanded, onToggleExpanded, startInCr
             </div>
 
             {/* Resumo do Preço */}
-            {selectedItem?.price && (
+            {((unitPriceText && unitPriceText.trim() !== '') || (selectedItem?.price != null)) && (
               <div className="bg-green-50 p-3 rounded-xl border border-green-200 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-green-700">Preço Total</div>
                   <div className="font-bold text-lg text-green-700">
-                    R$ {(selectedItem.price * (parseFloat(itemQuantityData.qty) || 1)).toFixed(2)}
+                    {(() => {
+                      const qty = parseFloat(itemQuantityData.qty) || 1
+                      const unitPrice = unitPriceText
+                        ? parseFloat(unitPriceText.replace(',', '.'))
+                        : (selectedItem?.price || 0)
+                      const total = unitPrice * qty
+                      return `R$ ${total.toFixed(2)}`
+                    })()}
                   </div>
                 </div>
-                <div className="text-xs text-green-600 mt-1">
-                  {itemQuantityData.qty} {itemQuantityData.unit === 'peso' ? 'kg' : 'unidades'} × R$ {selectedItem.price.toFixed(2)}
+                <div className="text-xs text-green-700 mt-2 flex items-center gap-2 flex-wrap">
+                  <span>
+                    {itemQuantityData.qty} {itemQuantityData.unit === 'peso' ? 'kg' : 'unidades'} ×
+                  </span>
+                  <div className="flex items-center border border-green-200 rounded-lg bg-white/70 focus-within:ring-2 focus-within:ring-green-500 focus-within:border-green-500">
+                    <span className="pl-2 pr-1 text-green-700">R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={unitPriceText}
+                      onChange={(e)=>{
+                        const digits = e.target.value.replace(/[^0-9]/g, '')
+                        if (!digits) { setUnitPriceText(''); return }
+                        const number = (parseInt(digits, 10) / 100).toFixed(2)
+                        setUnitPriceText(number.replace('.', ','))
+                      }}
+                      onFocus={(e)=> e.currentTarget.select()}
+                      onKeyDown={(e)=>{ if (e.key === 'Enter') { e.preventDefault(); handleSaveUnitPrice() } }}
+                      className="py-1 pr-2 bg-transparent outline-none border-0 text-green-700 font-medium w-20 text-center"
+                      placeholder={(selectedItem?.price ?? 0).toFixed(2).replace('.', ',')}
+                      aria-label="Preço unitário"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveUnitPrice}
+                      disabled={savingUnitPrice || !unitPriceText}
+                      className="ml-2 px-2 py-1 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      aria-label="Atualizar preço"
+                      title="Atualizar preço"
+                    >
+                      <RefreshCcw size={14} />
+                      <span className="text-xs font-medium">Atualizar preço</span>
+                    </button>
+                  </div>
+                  <span className="text-green-600">por {itemQuantityData.unit === 'peso' ? 'kg' : 'unidade'}</span>
                 </div>
               </div>
             )}

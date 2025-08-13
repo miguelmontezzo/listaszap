@@ -35,6 +35,7 @@ export function ListDetailPage(){
   const [showEditList, setShowEditList] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({})
+  const [pendingPrices, setPendingPrices] = useState<Record<string, { price: number; ts: number }>>({})
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [leftSuccess, setLeftSuccess] = useState(false)
   // removed explicit delete list button per request
@@ -66,23 +67,80 @@ export function ListDetailPage(){
       const listItems = list.items.map((listItem: any) => {
         const itemInfo = itemById.get(listItem.itemId)
         const meta = itemInfo ? catMetaById.get(itemInfo.categoryId) : undefined
-        return {
+        const pending = pendingPrices[listItem.id]
+        const ttlOk = pending && (Date.now() - pending.ts) < 2 * 60 * 1000
+        // Sempre prioriza o preço atual do item (tabela itens), pois a webhook atualiza lá primeiro
+        const resolvedPrice = (itemInfo?.price ?? listItem.price ?? 0)
+        const mapped = {
           id: listItem.id,
           name: itemInfo?.name || 'Item não encontrado',
           checked: listItem.checked,
           qty: listItem.quantity,
-          price: listItem.price,
+          price: ttlOk ? pending!.price : resolvedPrice,
           unit: listItem.unit || (itemInfo?.defaultUnit as any) || 'unidade',
           category: meta?.name,
           categoryId: itemInfo?.categoryId,
           categoryColor: meta?.color,
         }
+        // Persist override em localStorage para que ListsPage reflita imediatamente
+        try {
+          const key = 'lz_pending_item_prices'
+          const raw = localStorage.getItem(key)
+          const cache = raw ? JSON.parse(raw) : {}
+          if (ttlOk) {
+            cache[listItem.id] = { price: pending!.price, ts: pending!.ts, listId: list.id }
+          } else if (cache[listItem.id]) {
+            delete cache[listItem.id]
+          }
+          localStorage.setItem(key, JSON.stringify(cache))
+        } catch {}
+        return mapped
       })
       setItems(listItems)
     } catch (error) {
       console.error('Erro ao carregar lista:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function waitForListItemPrice(listItemId: string, expectedPrice?: number, tries = 5, intervalMs = 400) {
+    if (expectedPrice == null) return
+    for (let i = 0; i < tries; i++) {
+      const fresh = await storage.getList(id!)
+      const li = fresh.items.find((x: any) => x.id === listItemId)
+      if (li && Math.abs((li.price ?? 0) - expectedPrice) < 0.005) {
+        setListData(fresh)
+        const itemIds = Array.from(new Set(fresh.items.map((li: any) => li.itemId).filter(Boolean)))
+        const itemsResult = (storage as any).getItemsByIds ? await (storage as any).getItemsByIds(itemIds) : await storage.getItems()
+        const allItems = itemsResult as StorageItem[]
+        const catIds = Array.from(new Set(allItems.map((i: StorageItem) => i.categoryId).filter(Boolean)))
+        const categoriesResult = (storage as any).getCategoriesByIds ? await (storage as any).getCategoriesByIds(catIds) : await storage.getCategories()
+        const categories = categoriesResult as StorageCategory[]
+        const catMetaById = new Map<string, { name: string; color: string }>(categories.map((c: StorageCategory) => [c.id, { name: c.name, color: c.color }]))
+        const itemById = new Map<string, StorageItem>(allItems.map((it: StorageItem) => [it.id, it]))
+        const listItems = fresh.items.map((listItem: any) => {
+          const itemInfo = itemById.get(listItem.itemId)
+          const meta = itemInfo ? catMetaById.get(itemInfo.categoryId) : undefined
+          const resolvedPrice = (itemInfo?.price ?? listItem.price ?? 0)
+          return {
+            id: listItem.id,
+            name: itemInfo?.name || 'Item não encontrado',
+            checked: listItem.checked,
+            qty: listItem.quantity,
+            price: resolvedPrice,
+            unit: listItem.unit || (itemInfo?.defaultUnit as any) || 'unidade',
+            category: meta?.name,
+            categoryId: itemInfo?.categoryId,
+            categoryColor: meta?.color,
+          }
+        })
+        setItems(listItems)
+        // clear pending for this item
+        setPendingPrices(prev => { const n = { ...prev }; delete n[listItemId]; return n })
+        return
+      }
+      await new Promise(r => setTimeout(r, intervalMs))
     }
   }
 
@@ -350,6 +408,7 @@ export function ListDetailPage(){
           hideCollapsedButton
           compact
           itemsCount={items.length}
+          listId={id}
         />
       </div>
       )}
@@ -527,7 +586,29 @@ export function ListDetailPage(){
         isOpen={!!editingListItem}
         onClose={()=>setEditingListItem(null)}
         initial={editingListItem ? { id: editingListItem.id, name: editingListItem.name, quantity: editingListItem.qty||1, price: editingListItem.price||0, unit: editingListItem.unit as any } : null}
-        onSave={async (patch)=>{ await storage.updateListItem(id!, patch.listItemId, { quantity: patch.quantity, price: patch.price, unit: patch.unit }); await loadListDetail() }}
+        onSave={async (patch)=>{
+          // Atualiza via webhook (fonte da verdade)
+          const resp = await api.atualizarItemDaLista({
+            id_lista: id!,
+            id_item_lista: patch.listItemId,
+            quantidade: patch.quantity,
+            preco_unitario: patch.price,
+            unidade: patch.unit,
+            userId: user?.id,
+          })
+          // Remover qualquer tentativa de update direto no Supabase (sem credenciais)
+          // Atualiza otimisticamente o item na UI usando o preco_novo retornado
+          const newPrice = (() => {
+            const b = resp.body
+            if (Array.isArray(b) && b.length > 0 && b[0]?.preco_novo) return parseFloat(String(b[0].preco_novo).replace(',', '.'))
+            if (typeof b?.preco_novo === 'string' || typeof b?.preco_novo === 'number') return parseFloat(String(b.preco_novo).replace(',', '.'))
+            return patch.price
+          })()
+          setItems(prev => prev.map(it => it.id === patch.listItemId ? { ...it, qty: patch.quantity, unit: patch.unit as any, price: newPrice } : it))
+          setPendingPrices(prev => ({ ...prev, [patch.listItemId]: { price: newPrice, ts: Date.now() } }))
+          // Poll até refletir no Supabase; mantém valor otimista durante a sincronização
+          await waitForListItemPrice(patch.listItemId, newPrice, 10, 500)
+        }}
         onDelete={async (listItemId)=>{
           await api.removerItemDaLista({ id_lista: id!, id_item_lista: listItemId, userId: user?.id })
           await loadListDetail()
