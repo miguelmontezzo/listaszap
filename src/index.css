@@ -595,6 +595,18 @@ html {
   color: hsl(var(--text-muted));
 }
 
+/* Gradientes verdes usados nas telas de autenticação em tema escuro */
+/* Ajusta os tokens de gradiente do Tailwind para tons discretos no dark */
+:root[data-theme="dark"] .from-green-50 {
+  --tw-gradient-from: rgba(34, 197, 94, 0.12) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(34 197 94 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+:root[data-theme="dark"] .to-green-100 {
+  --tw-gradient-to: rgba(34, 197, 94, 0.08) var(--tw-gradient-to-position);
+}
+
 /* Botão secundário (Cancelar, etc.) em tema escuro */
 :root[data-theme="dark"] .btn-secondary {
   color: hsl(var(--text-secondary));
