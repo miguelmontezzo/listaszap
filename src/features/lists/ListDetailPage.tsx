@@ -225,7 +225,12 @@ export function ListDetailPage(){
     }
   }
 
-  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, '')
   const filteredItems = items.filter(item => 
     normalize(item.name).includes(normalize(q))
   )

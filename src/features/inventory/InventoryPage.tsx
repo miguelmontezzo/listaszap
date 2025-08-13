@@ -39,11 +39,18 @@ export function InventoryPage() {
     }
   }
 
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove acentos
+      .replace(/[^a-z0-9\s]/g, '') // remove símbolos
+
   const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return items
+    const qn = normalize(search.trim())
+    if (!qn) return items
     return items.filter(i =>
-      i.name.toLowerCase().includes(q) || (i.categoryName || '').toLowerCase().includes(q)
+      normalize(i.name).includes(qn) || normalize(i.categoryName || '').includes(qn)
     )
   }, [items, search])
 
